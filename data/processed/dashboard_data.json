@@ -1,0 +1,284 @@
+{
+  "kpis": {
+    "total_internacoes": 15000,
+    "tmp_medio": 4.1,
+    "receita_total": 260010739.0,
+    "custo_total": 224605084.57,
+    "custo_opme_total": 61682166.35,
+    "margem_total": 35405654.43,
+    "margem_pct": 13.6,
+    "taxa_readmissao_pct": 6.1,
+    "taxa_mortalidade_pct": 2.5
+  },
+  "especialidades": [
+    {
+      "especialidade": "Cardiologia",
+      "total": 3992,
+      "receita": 94239222.59,
+      "custo": 78587755.1,
+      "opme": 19756792.33,
+      "margem": 15651467.49,
+      "margem_pct": 16.6,
+      "tmp_real": 4.7,
+      "tmp_meta": 4.3
+    },
+    {
+      "especialidade": "Ortopedia",
+      "total": 3614,
+      "receita": 72148786.11,
+      "custo": 70253693.78,
+      "opme": 32604076.61,
+      "margem": 1895092.33,
+      "margem_pct": 2.6,
+      "tmp_real": 5.2,
+      "tmp_meta": 4.5
+    },
+    {
+      "especialidade": "Neurologia",
+      "total": 1345,
+      "receita": 38354396.05,
+      "custo": 31937545.79,
+      "opme": 6470947.64,
+      "margem": 6416850.26,
+      "margem_pct": 16.7,
+      "tmp_real": 5.9,
+      "tmp_meta": 6.5
+    },
+    {
+      "especialidade": "Cirurgia Geral",
+      "total": 3906,
+      "receita": 24503345.53,
+      "custo": 18158139.19,
+      "opme": 913195.57,
+      "margem": 6345206.34,
+      "margem_pct": 25.9,
+      "tmp_real": 1.5,
+      "tmp_meta": 1.5
+    },
+    {
+      "especialidade": "Oncologia",
+      "total": 1134,
+      "receita": 15628547.82,
+      "custo": 13047902.21,
+      "opme": 1937154.2,
+      "margem": 2580645.61,
+      "margem_pct": 16.5,
+      "tmp_real": 3.9,
+      "tmp_meta": 4.3
+    },
+    {
+      "especialidade": "Cl\u00ednica M\u00e9dica",
+      "total": 1009,
+      "receita": 15136440.9,
+      "custo": 12620048.5,
+      "opme": 0.0,
+      "margem": 2516392.4,
+      "margem_pct": 16.6,
+      "tmp_real": 5.7,
+      "tmp_meta": 6.2
+    }
+  ],
+  "ocupacao": [
+    {
+      "tipo_acomodacao": "UTI Adulto & Cr\u00edtica",
+      "leitos_operacionais": 30,
+      "total_admissoes": 5633,
+      "dias_ocupados": 29176.0,
+      "taxa_ocupacao_pct": 266.4
+    },
+    {
+      "tipo_acomodacao": "Enfermaria Cir\u00fargica & PO",
+      "leitos_operacionais": 70,
+      "total_admissoes": 7112,
+      "dias_ocupados": 26449.0,
+      "taxa_ocupacao_pct": 103.5
+    },
+    {
+      "tipo_acomodacao": "Enfermaria Cl\u00ednica Geral",
+      "leitos_operacionais": 120,
+      "total_admissoes": 2255,
+      "dias_ocupados": 6324.0,
+      "taxa_ocupacao_pct": 14.4
+    }
+  ],
+  "readmissao": [
+    {
+      "cid_10": "M16.1",
+      "descricao_cid": "Coxartrose prim\u00e1ria (Artrose de quadril)",
+      "especialidade": "Ortopedia",
+      "total": 1222,
+      "readmissoes": 132.0,
+      "taxa_readmissao_pct": 10.8
+    },
+    {
+      "cid_10": "S72.0",
+      "descricao_cid": "Fratura do colo do f\u00eamur",
+      "especialidade": "Ortopedia",
+      "total": 1351,
+      "readmissoes": 135.0,
+      "taxa_readmissao_pct": 10.0
+    },
+    {
+      "cid_10": "M17.1",
+      "descricao_cid": "Gonartrose prim\u00e1ria (Artrose de joelho)",
+      "especialidade": "Ortopedia",
+      "total": 1041,
+      "readmissoes": 86.0,
+      "taxa_readmissao_pct": 8.3
+    },
+    {
+      "cid_10": "A41.9",
+      "descricao_cid": "Sepse n\u00e3o especificada",
+      "especialidade": "Cl\u00ednica M\u00e9dica",
+      "total": 296,
+      "readmissoes": 19.0,
+      "taxa_readmissao_pct": 6.4
+    },
+    {
+      "cid_10": "I64",
+      "descricao_cid": "Acidente vascular cerebral, n\u00e3o especificado",
+      "especialidade": "Neurologia",
+      "total": 1345,
+      "readmissoes": 71.0,
+      "taxa_readmissao_pct": 5.3
+    },
+    {
+      "cid_10": "K35.8",
+      "descricao_cid": "Apendicite aguda, outras e n\u00e3o especificadas",
+      "especialidade": "Cirurgia Geral",
+      "total": 1202,
+      "readmissoes": 64.0,
+      "taxa_readmissao_pct": 5.3
+    },
+    {
+      "cid_10": "K80.2",
+      "descricao_cid": "C\u00e1lculo da ves\u00edcula biliar sem colecistite",
+      "especialidade": "Cirurgia Geral",
+      "total": 1789,
+      "readmissoes": 93.0,
+      "taxa_readmissao_pct": 5.2
+    },
+    {
+      "cid_10": "K40.9",
+      "descricao_cid": "H\u00e9rnia inguinal unilateral",
+      "especialidade": "Cirurgia Geral",
+      "total": 915,
+      "readmissoes": 46.0,
+      "taxa_readmissao_pct": 5.0
+    },
+    {
+      "cid_10": "I21.9",
+      "descricao_cid": "Infarto agudo do mioc\u00e1rdio, n\u00e3o especificado",
+      "especialidade": "Cardiologia",
+      "total": 3992,
+      "readmissoes": 190.0,
+      "taxa_readmissao_pct": 4.8
+    },
+    {
+      "cid_10": "C18.9",
+      "descricao_cid": "Neoplasia maligna do c\u00f3lon",
+      "especialidade": "Oncologia",
+      "total": 1134,
+      "readmissoes": 53.0,
+      "taxa_readmissao_pct": 4.7
+    }
+  ],
+  "mensal": [
+    {
+      "ano_mes": "2023-01",
+      "total_internacoes": 1363,
+      "receita": 23875460.5,
+      "custo": 20604303.91,
+      "margem": 3271156.59,
+      "margem_pct": 13.7
+    },
+    {
+      "ano_mes": "2023-02",
+      "total_internacoes": 1205,
+      "receita": 20210526.03,
+      "custo": 17400196.38,
+      "margem": 2810329.65,
+      "margem_pct": 13.9
+    },
+    {
+      "ano_mes": "2023-03",
+      "total_internacoes": 1328,
+      "receita": 22915668.48,
+      "custo": 19759778.71,
+      "margem": 3155889.77,
+      "margem_pct": 13.8
+    },
+    {
+      "ano_mes": "2023-04",
+      "total_internacoes": 1298,
+      "receita": 22965528.18,
+      "custo": 19845598.46,
+      "margem": 3119929.72,
+      "margem_pct": 13.6
+    },
+    {
+      "ano_mes": "2023-05",
+      "total_internacoes": 1292,
+      "receita": 23151176.21,
+      "custo": 20090857.93,
+      "margem": 3060318.28,
+      "margem_pct": 13.2
+    },
+    {
+      "ano_mes": "2023-06",
+      "total_internacoes": 1244,
+      "receita": 20947160.74,
+      "custo": 18013888.04,
+      "margem": 2933272.7,
+      "margem_pct": 14.0
+    },
+    {
+      "ano_mes": "2023-07",
+      "total_internacoes": 1348,
+      "receita": 23522631.83,
+      "custo": 20242251.98,
+      "margem": 3280379.85,
+      "margem_pct": 13.9
+    },
+    {
+      "ano_mes": "2023-08",
+      "total_internacoes": 1295,
+      "receita": 22328164.88,
+      "custo": 19325283.43,
+      "margem": 3002881.45,
+      "margem_pct": 13.4
+    },
+    {
+      "ano_mes": "2023-09",
+      "total_internacoes": 1235,
+      "receita": 21456590.87,
+      "custo": 18577281.75,
+      "margem": 2879309.12,
+      "margem_pct": 13.4
+    },
+    {
+      "ano_mes": "2023-10",
+      "total_internacoes": 1337,
+      "receita": 22889845.09,
+      "custo": 19956241.01,
+      "margem": 2933604.08,
+      "margem_pct": 12.8
+    },
+    {
+      "ano_mes": "2023-11",
+      "total_internacoes": 1308,
+      "receita": 22600810.03,
+      "custo": 19554503.19,
+      "margem": 3046306.84,
+      "margem_pct": 13.5
+    },
+    {
+      "ano_mes": "2023-12",
+      "total_internacoes": 747,
+      "receita": 13147176.16,
+      "custo": 11234899.78,
+      "margem": 1912276.38,
+      "margem_pct": 14.5
+    }
+  ]
+}

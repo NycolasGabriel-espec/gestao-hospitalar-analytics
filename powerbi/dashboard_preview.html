@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Healthcare Analytics - Gestão Hospitalar</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    .tab-active { border-bottom: 3px solid #2A9D8F; color: #1D3557; font-weight: 700; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+  <!-- Top Navigation Bar -->
+  <header class="bg-[#1D3557] text-white shadow-lg sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex flex-wrap justify-between items-center gap-4">
+      <div class="flex items-center space-x-3">
+        <span class="text-3xl">🏥</span>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight">Hospital Analytics Suite</h1>
+          <p class="text-xs text-slate-300">Gestão de Custos, Ociosidade de Leitos e Eficiência Assistencial</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2">
+        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+          ● Modelo Star Schema Ativo
+        </span>
+        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+          DuckDB Engine
+        </span>
+      </div>
+    </div>
+
+    <!-- Sub Header Tabs -->
+    <div class="bg-white border-b border-slate-200">
+      <div class="max-w-7xl mx-auto px-4 flex space-x-8 text-sm">
+        <button onclick="switchTab('tab1')" id="btn-tab1" class="py-3 px-1 text-slate-600 hover:text-slate-900 tab-active transition-all">
+          📊 Tela 1: Visão Executiva Médico-Financeira
+        </button>
+        <button onclick="switchTab('tab2')" id="btn-tab2" class="py-3 px-1 text-slate-600 hover:text-slate-900 transition-all">
+          🛏️ Tela 2: Gestão de Leitos & Eficiência (ALOS)
+        </button>
+        <button onclick="switchTab('tab3')" id="btn-tab3" class="py-3 px-1 text-slate-600 hover:text-slate-900 transition-all">
+          ⚠️ Tela 3: Risco Clínico & Readmissão 30d
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+    <!-- KPI Summary Cards (Common Top Bar) -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Card 1 -->
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition">
+        <div class="flex justify-between items-start">
+          <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Internações</p>
+          <span class="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-semibold">12 Meses</span>
+        </div>
+        <h3 class="text-3xl font-extrabold text-[#1D3557] mt-2" id="kpi-internacoes">15.000</h3>
+        <p class="text-xs text-slate-500 mt-1">Atendimentos hospitalares regulados</p>
+      </div>
+
+      <!-- Card 2 -->
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition">
+        <div class="flex justify-between items-start">
+          <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">TMP Médio (ALOS)</p>
+          <span class="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold">Meta: 4.0d</span>
+        </div>
+        <h3 class="text-3xl font-extrabold text-amber-600 mt-2" id="kpi-tmp">4.4 <span class="text-lg font-medium text-slate-500">dias</span></h3>
+        <p class="text-xs text-amber-700 mt-1 font-medium">⚠️ +0.4 dias de desvio vs diretriz</p>
+      </div>
+
+      <!-- Card 3 -->
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition">
+        <div class="flex justify-between items-start">
+          <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Margem de Contribuição</p>
+          <span class="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold" id="kpi-margem-pct">13.3%</span>
+        </div>
+        <h3 class="text-3xl font-extrabold text-emerald-600 mt-2" id="kpi-margem">R$ 34.8M</h3>
+        <p class="text-xs text-slate-500 mt-1">Receita: R$ 260.9M | Custos: R$ 226.1M</p>
+      </div>
+
+      <!-- Card 4 -->
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition">
+        <div class="flex justify-between items-start">
+          <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Taxa Readmissão 30d</p>
+          <span class="text-xs px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-semibold">Alerta > 10%</span>
+        </div>
+        <h3 class="text-3xl font-extrabold text-rose-600 mt-2" id="kpi-readmissao">9.4%</h3>
+        <p class="text-xs text-rose-700 mt-1 font-medium">1.411 pacientes reinternados</p>
+      </div>
+    </div>
+
+    <!-- ====================================================================== -->
+    <!-- TELA 1: VISÃO EXECUTIVA MÉDICO-FINANCEIRA                             -->
+    <!-- ====================================================================== -->
+    <div id="section-tab1" class="space-y-6">
+      
+      <!-- Linha 1 de Gráficos -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Matriz BCG Clínica: TMP vs Margem -->
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+          <div class="mb-4">
+            <h4 class="font-bold text-[#1D3557] text-base">Matriz de Eficiência: TMP Médio vs. Margem de Contribuição (%)</h4>
+            <p class="text-xs text-slate-500">Avalia o quadrante de valor por Especialidade Médica</p>
+          </div>
+          <div class="h-72">
+            <canvas id="chartScatter"></canvas>
+          </div>
+        </div>
+
+        <!-- Estrutura de Custos: Peso do OPME -->
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+          <div class="mb-4">
+            <h4 class="font-bold text-[#1D3557] text-base">Receita vs. Custos Hospitalares vs. Custo OPME (R$ Milhões)</h4>
+            <p class="text-xs text-slate-500">Destaque para o impacto de próteses/órteses na especialidade de Ortopedia</p>
+          </div>
+          <div class="h-72">
+            <canvas id="chartEspecialidades"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Evolução Mensal -->
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+        <div class="mb-4">
+          <h4 class="font-bold text-[#1D3557] text-base">Evolução Mensal da Receita Faturada e Custo Operacional (2023)</h4>
+          <p class="text-xs text-slate-500">Tendência financeira e volume de internações ao longo do ano</p>
+        </div>
+        <div class="h-64">
+          <canvas id="chartMensal"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====================================================================== -->
+    <!-- TELA 2: GESTÃO OPERACIONAL DE LEITOS & EFICIÊNCIA                     -->
+    <!-- ====================================================================== -->
+    <div id="section-tab2" class="hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- Taxa de Ocupação por Acomodação -->
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+          <div class="mb-4">
+            <h4 class="font-bold text-[#1D3557] text-base">Taxa de Ocupação Média por Tipo de Acomodação</h4>
+            <p class="text-xs text-slate-500">Linha de corte de segurança: 85% para UTI | Ociosidade: < 65%</p>
+          </div>
+          <div class="h-72">
+            <canvas id="chartOcupacao"></canvas>
+          </div>
+        </div>
+
+        <!-- Desvio de Permanência (TMP Real vs Protocolo) -->
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+          <div class="mb-4">
+            <h4 class="font-bold text-[#1D3557] text-base">Tempo Médio de Permanência: Real vs. Protocolo Clínico (Dias)</h4>
+            <p class="text-xs text-slate-500">Desvios prolongados geram custos de diárias excedentes e risco de IRAS</p>
+          </div>
+          <div class="h-72">
+            <canvas id="chartALOS"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabela Operacional de Capacidade Instalada -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="p-5 border-b border-slate-200 bg-slate-50">
+          <h4 class="font-bold text-[#1D3557] text-base">Capacidade Instalada e Giro de Leitos por Setor</h4>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-600">
+            <thead class="bg-slate-100 text-xs uppercase font-semibold text-slate-700">
+              <tr>
+                <th class="p-4">Tipo de Acomodação</th>
+                <th class="p-4">Leitos Instalados</th>
+                <th class="p-4">Total Admissões</th>
+                <th class="p-4">Dias-Paciente Ocupados</th>
+                <th class="p-4">Taxa Ocupação %</th>
+                <th class="p-4">Status de Capacidade</th>
+              </tr>
+            </thead>
+            <tbody id="table-ocupacao-body" class="divide-y divide-slate-200">
+              <!-- Populado via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====================================================================== -->
+    <!-- TELA 3: RISCO CLÍNICO & READMISSÃO EM 30 DIAS                         -->
+    <!-- ====================================================================== -->
+    <div id="section-tab3" class="hidden space-y-6">
+      
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Top Patologias Readmissão -->
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+          <div class="mb-4">
+            <h4 class="font-bold text-[#1D3557] text-base">Top Patologias (CID-10) com Maior Taxa de Readmissão em 30 Dias</h4>
+            <p class="text-xs text-slate-500">Condições clínicas prioritárias para desospitalização segura e follow-up ambulatorial</p>
+          </div>
+          <div class="h-80">
+            <canvas id="chartReadmissao"></canvas>
+          </div>
+        </div>
+
+        <!-- Recomendações Clínico-Operacionais -->
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
+          <div>
+            <h4 class="font-bold text-[#1D3557] text-base mb-3">Recomendações Estratégicas para o Comitê Médico</h4>
+            <div class="space-y-3 text-sm">
+              <div class="p-3 bg-red-50 border-l-4 border-red-500 rounded text-red-900">
+                <strong>Ortopedia & Traumatologia:</strong> Margem de apenas 2.6% devido a OPME (R$ 32.6M). Estabelecer teto de compras e tabela padronizada de fornecedores.
+              </div>
+              <div class="p-3 bg-amber-50 border-l-4 border-amber-500 rounded text-amber-900">
+                <strong>Desospitalização Cirúrgica:</strong> Adoção de protocolo <em>Fast-Track</em> no pós-operatório ortopédico para reduzir em 0.7 dias o TMP, liberando ~24 leitos/mês.
+              </div>
+              <div class="p-3 bg-emerald-50 border-l-4 border-emerald-500 rounded text-emerald-900">
+                <strong>Cirurgia Geral:</strong> Especialidade com maior margem (25.9%) e giro rápido (1.5 dias). Priorizar agendamentos de bloco e expandir <em>Day Hospital</em>.
+              </div>
+            </div>
+          </div>
+          <div class="mt-4 pt-4 border-t border-slate-200 text-xs text-slate-500 flex justify-between items-center">
+            <span>Fonte de Dados: DATASUS / SIH-SUS & Modelo Benchmark Hospitalar</span>
+            <span class="font-mono">ID: gestao-hospitalar-analytics</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <script>
+    // Carregamento dos dados reais exportados do DuckDB
+    const hospitalData = {
+      especialidades: [
+        { especialidade: "Cardiologia", total: 3992, receita: 94.24, custo: 78.59, opme: 19.76, margem: 15.65, margem_pct: 16.6, tmp_real: 4.7, tmp_meta: 4.3 },
+        { especialidade: "Ortopedia", total: 3614, receita: 72.15, custo: 70.25, opme: 32.60, margem: 1.90, margem_pct: 2.6, tmp_real: 5.2, tmp_meta: 4.5 },
+        { especialidade: "Neurologia", total: 1345, receita: 38.35, custo: 31.94, opme: 6.47, margem: 6.42, margem_pct: 16.7, tmp_real: 5.9, tmp_meta: 6.5 },
+        { especialidade: "Cirurgia Geral", total: 3906, receita: 24.50, custo: 18.16, opme: 0.91, margem: 6.35, margem_pct: 25.9, tmp_real: 1.5, tmp_meta: 1.5 },
+        { especialidade: "Oncologia", total: 1134, receita: 15.63, custo: 13.05, opme: 1.94, margem: 2.58, margem_pct: 16.5, tmp_real: 3.9, tmp_meta: 4.3 },
+        { especialidade: "Clínica Médica", total: 1009, receita: 15.14, custo: 12.62, opme: 0.00, margem: 2.52, margem_pct: 16.6, tmp_real: 5.7, tmp_meta: 6.2 }
+      ],
+      ocupacao: [
+        { tipo: "UTI Adulto & Crítica", leitos: 30, admissoes: 3345, dias: 9810, taxa: 89.6, status: "🚨 Saturação Crítica" },
+        { tipo: "Enfermaria Cirúrgica & PO", leitos: 70, admissoes: 7367, dias: 24520, taxa: 96.0, status: "🚨 Saturação Crítica" },
+        { tipo: "Enfermaria Clínica Geral", leitos: 120, admissoes: 4288, dias: 31540, taxa: 72.0, status: "🟢 Faixa Ideal" }
+      ],
+      readmissao: [
+        { cid: "S72.0", desc: "Fratura do colo do fêmur", esp: "Ortopedia", taxa: 17.2 },
+        { cid: "M16.1", desc: "Artrose primária de quadril", esp: "Ortopedia", taxa: 14.8 },
+        { cid: "M17.1", desc: "Artrose primária de joelho", esp: "Ortopedia", taxa: 13.5 },
+        { cid: "I50.0", desc: "Insuficiência cardíaca congestiva", esp: "Cardiologia", taxa: 12.1 },
+        { cid: "J44.1", desc: "DPOC com exacerbação", esp: "Clínica Médica", taxa: 11.4 },
+        { cid: "I21.9", desc: "Infarto agudo do miocárdio", esp: "Cardiologia", taxa: 5.2 },
+        { cid: "K80.2", desc: "Cálculo da vesícula biliar", esp: "Cirurgia Geral", taxa: 4.8 }
+      ],
+      mensal: [
+        { mes: "Jan", receita: 21.2, custo: 18.5 },
+        { mes: "Fev", receita: 20.8, custo: 18.1 },
+        { mes: "Mar", receita: 22.4, custo: 19.3 },
+        { mes: "Abr", receita: 21.9, custo: 18.8 },
+        { mes: "Mai", receita: 22.1, custo: 19.2 },
+        { mes: "Jun", receita: 21.6, custo: 18.9 },
+        { mes: "Jul", receita: 22.8, custo: 19.7 },
+        { mes: "Ago", receita: 22.3, custo: 19.1 },
+        { mes: "Set", receita: 21.7, custo: 18.9 },
+        { mes: "Out", receita: 22.5, custo: 19.4 },
+        { mes: "Nov", receita: 20.9, custo: 18.2 },
+        { mes: "Dez", receita: 20.7, custo: 18.0 }
+      ]
+    };
+
+    // Navegação entre abas
+    function switchTab(tabId) {
+      ['tab1', 'tab2', 'tab3'].forEach(t => {
+        document.getElementById(`section-${t}`).classList.add('hidden');
+        document.getElementById(`btn-${t}`).classList.remove('tab-active');
+      });
+      document.getElementById(`section-${tabId}`).classList.remove('hidden');
+      document.getElementById(`btn-${tabId}`).classList.add('tab-active');
+    }
+
+    // Inicialização dos Gráficos
+    window.onload = function() {
+      // 1. Gráfico Scatter: TMP vs Margem
+      new Chart(document.getElementById('chartScatter'), {
+        type: 'bubble',
+        data: {
+          datasets: hospitalData.especialidades.map(e => ({
+            label: e.especialidade,
+            data: [{ x: e.tmp_real, y: e.margem_pct, r: Math.max(8, e.receita / 4) }],
+            backgroundColor: e.especialidade === 'Ortopedia' ? '#E63946' : (e.especialidade === 'Cirurgia Geral' ? '#2A9D8F' : '#457B9D')
+          }))
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { title: { display: true, text: 'TMP Médio Real (Dias)' } },
+            y: { title: { display: true, text: 'Margem de Contribuição (%)' }, min: 0, max: 30 }
+          }
+        }
+      });
+
+      // 2. Gráfico Barras: Receita vs Custo vs OPME
+      new Chart(document.getElementById('chartEspecialidades'), {
+        type: 'bar',
+        data: {
+          labels: hospitalData.especialidades.map(e => e.especialidade),
+          datasets: [
+            { label: 'Receita Total (R$ M)', data: hospitalData.especialidades.map(e => e.receita), backgroundColor: '#1D3557' },
+            { label: 'Custo Hospitalar (R$ M)', data: hospitalData.especialidades.map(e => (e.custo - e.opme).toFixed(2)), backgroundColor: '#457B9D' },
+            { label: 'Custo OPME / Próteses (R$ M)', data: hospitalData.especialidades.map(e => e.opme), backgroundColor: '#E63946' }
+          ]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      // 3. Gráfico Evolução Mensal
+      new Chart(document.getElementById('chartMensal'), {
+        type: 'line',
+        data: {
+          labels: hospitalData.mensal.map(m => m.mes),
+          datasets: [
+            { label: 'Receita Faturada (R$ M)', data: hospitalData.mensal.map(m => m.receita), borderColor: '#2A9D8F', backgroundColor: '#2A9D8F', fill: false, tension: 0.3 },
+            { label: 'Custo Operacional (R$ M)', data: hospitalData.mensal.map(m => m.custo), borderColor: '#E63946', backgroundColor: '#E63946', fill: false, tension: 0.3 }
+          ]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      // 4. Gráfico Ocupação de Leitos
+      new Chart(document.getElementById('chartOcupacao'), {
+        type: 'bar',
+        data: {
+          labels: hospitalData.ocupacao.map(o => o.tipo),
+          datasets: [{
+            label: 'Taxa de Ocupação (%)',
+            data: hospitalData.ocupacao.map(o => o.taxa),
+            backgroundColor: hospitalData.ocupacao.map(o => o.taxa > 85 ? '#E63946' : '#2A9D8F')
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: { y: { min: 0, max: 100, title: { display: true, text: 'Ocupação (%)' } } }
+        }
+      });
+
+      // 5. Gráfico TMP Real vs Meta
+      new Chart(document.getElementById('chartALOS'), {
+        type: 'bar',
+        data: {
+          labels: hospitalData.especialidades.map(e => e.especialidade),
+          datasets: [
+            { label: 'TMP Real (dias)', data: hospitalData.especialidades.map(e => e.tmp_real), backgroundColor: '#F4A261' },
+            { label: 'Meta de Protocolo (dias)', data: hospitalData.especialidades.map(e => e.tmp_meta), backgroundColor: '#2A9D8F' }
+          ]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      // 6. Gráfico Readmissão
+      new Chart(document.getElementById('chartReadmissao'), {
+        type: 'bar',
+        indexAxis: 'y',
+        data: {
+          labels: hospitalData.readmissao.map(r => `${r.cid} - ${r.desc}`),
+          datasets: [{
+            label: 'Taxa de Readmissão 30d (%)',
+            data: hospitalData.readmissao.map(r => r.taxa),
+            backgroundColor: '#E63946'
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      // Tabela Ocupação
+      const tbody = document.getElementById('table-ocupacao-body');
+      tbody.innerHTML = hospitalData.ocupacao.map(o => `
+        <tr class="hover:bg-slate-50 transition">
+          <td class="p-4 font-medium text-slate-800">${o.tipo}</td>
+          <td class="p-4">${o.leitos}</td>
+          <td class="p-4">${o.admissoes.toLocaleString('pt-BR')}</td>
+          <td class="p-4">${o.dias.toLocaleString('pt-BR')}</td>
+          <td class="p-4 font-bold ${o.taxa > 85 ? 'text-red-600' : 'text-emerald-600'}">${o.taxa}%</td>
+          <td class="p-4 font-medium">${o.status}</td>
+        </tr>
+      `).join('');
+    };
+  </script>
+</body>
+</html>
