@@ -1,0 +1,16 @@
+id_procedimento;descricao_procedimento;especialidade;complexidade;porte_cirurgico;tmp_protocolo_previsto
+0408050160;Artroplastia Total de Quadril;Ortopedia;Alta Complexidade;Grande;4.0
+0408050152;Artroplastia Total de Joelho;Ortopedia;Alta Complexidade;Grande;4.5
+0408040050;Osteossíntese de Fratura de Fêmur;Ortopedia;Alta Complexidade;Médio;5.0
+0406010072;Revascularização Miocárdica (Ponte de Safena);Cardiologia;Alta Complexidade;Grande;6.5
+0406030049;Angioplastia Coronariana com Stent;Cardiologia;Alta Complexidade;Médio;2.5
+0303060190;Tratamento Clínico de Infarto Agudo do Miocárdio;Cardiologia;Alta Complexidade;Clínico;5.0
+0407020140;Colecistectomia Videolaparoscópica;Cirurgia Geral;Média Complexidade;Médio;1.5
+0407010030;Apendicectomia por Videolaparoscopia;Cirurgia Geral;Média Complexidade;Médio;2.0
+0407040108;Hernioplastia Inguinal Unilateral;Cirurgia Geral;Média Complexidade;Pequeno;1.0
+0403010098;Craniotomia para Drenagem de Hematoma;Neurologia;Alta Complexidade;Grande;7.0
+0303040157;Tratamento de Acidente Vascular Cerebral (AVC);Neurologia;Alta Complexidade;Clínico;6.0
+0416010080;Ressecção de Tumor Colorretal;Oncologia;Alta Complexidade;Grande;6.0
+0304020100;Quimioterapia de Alta Complexidade;Oncologia;Alta Complexidade;Clínico;3.0
+0303010037;Tratamento de Pneumonia Grave / Insuficiência Respiratória;Clínica Médica;Média Complexidade;Clínico;5.5
+0303010061;Tratamento de Sepse / Choque Séptico;Clínica Médica;Alta Complexidade;Clínico;8.0

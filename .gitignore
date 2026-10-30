@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# Ambientes e caches
+.DS_Store
+.vscode/
+.idea/
+
+# Dados brutos pesados (podem ser baixados via script)
+data/raw/*.parquet
+data/raw/*.dbc
+data/raw/*.csv
+
+# DuckDB lock/wal temporários
+*.duckdb.wal
