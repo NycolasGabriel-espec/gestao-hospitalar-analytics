@@ -1,6 +1,7 @@
 # 🏥 Healthcare Analytics: Gestão de Custos, Ociosidade de Leitos e Eficiência Hospitalar
 
 ![Python](https://img.shields.io/badge/Python-3.14-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-Cloud%20PostgreSQL-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)
 ![DuckDB](https://img.shields.io/badge/DuckDB-In--Process%20OLAP-FFF000?style=for-the-badge&logo=duckdb&logoColor=black)
 ![SQL](https://img.shields.io/badge/SQL-Star%20Schema-CC292B?style=for-the-badge&logo=postgresql&logoColor=white)
 ![PowerBI](https://img.shields.io/badge/Power_BI-DAX%20Analytics-F2C811?style=for-the-badge&logo=powerbi&logoColor=black)
@@ -41,10 +42,10 @@ A governança executiva precisa responder a quatro perguntas estratégicas:
                            │
        ┌───────────────────┴───────────────────┐
        ▼                                       ▼
-[ DuckDB OLAP Engine ]                 [ Power BI / Looker ]
+[ DuckDB / Supabase Cloud ]            [ Power BI / Looker ]
  • 02_analytical_queries.sql            • Painel Executivo Médico-Financeiro
  • 03_views_bi.sql                      • Gestão de Ocupação & Giro de Leitos
-                                        • Detalhamento de Risco e Readmissão
+ • sql/supabase_setup.sql               • Detalhamento de Risco e Readmissão
 ```
 
 ---
@@ -234,9 +235,22 @@ print(con.execute('SELECT especialidade, COUNT(*), ROUND(AVG(dias_permanencia), 
 "
 ```
 
-6. **Importar no Power BI:**
+6. **Carregar o Star Schema no Supabase (Nuvem):**
+* Execute o script [`sql/supabase_setup.sql`](file:///Users/nycolas/gestao-hospitalar-analytics/sql/supabase_setup.sql) no **SQL Editor** do Supabase.
+* Copie o arquivo de variáveis de ambiente: `cp .env.example .env` e adicione suas credenciais do projeto Supabase.
+* Execute a carga automatizada:
+```bash
+# Carga via API REST PostgREST (não requer driver PostgreSQL)
+python3 src/load_to_supabase.py --method api
+
+# Ou carga direta PostgreSQL (via SQLAlchemy / psycopg2)
+python3 src/load_to_supabase.py --method direct
+```
+* Consulte o guia completo em [`docs/supabase_integration.md`](file:///Users/nycolas/gestao-hospitalar-analytics/docs/supabase_integration.md).
+
+7. **Importar no Power BI:**
 * Abra o Power BI Desktop.
-* Conecte-se aos arquivos `.csv` ou `.parquet` gerados na pasta [`data/processed/`](file:///Users/nycolas/gestao-hospitalar-analytics/data/processed/).
+* Conecte-se aos arquivos locais em [`data/processed/`](file:///Users/nycolas/gestao-hospitalar-analytics/data/processed/) ou diretamente ao **Supabase (PostgreSQL)** nas views `vw_painel_executivo_mensal`, `vw_eficiencia_leitos_setor` e `vw_detalhe_clinico_risco`.
 * Cole as medidas DAX do arquivo [`powerbi/dax_measures.dax`](file:///Users/nycolas/gestao-hospitalar-analytics/powerbi/dax_measures.dax).
 
 ---

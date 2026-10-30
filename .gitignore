@@ -12,6 +12,9 @@ venv/
 .DS_Store
 .vscode/
 .idea/
+.env
+.env.*
+!.env.example
 
 # Dados brutos pesados (podem ser baixados via script)
 data/raw/*.parquet
@@ -20,3 +23,7 @@ data/raw/*.csv
 
 # DuckDB lock/wal temporários
 *.duckdb.wal
+
+# Supabase CLI local
+supabase/.temp/
+supabase/.branches/
