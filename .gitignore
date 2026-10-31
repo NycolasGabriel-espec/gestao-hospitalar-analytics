@@ -27,3 +27,4 @@ data/raw/*.csv
 # Supabase CLI local
 supabase/.temp/
 supabase/.branches/
+node_modules
