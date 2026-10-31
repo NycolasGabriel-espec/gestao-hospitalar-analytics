@@ -169,6 +169,9 @@ gestao-hospitalar-analytics/
 │   ├── transform_star_schema.py       # Pipeline ETL de saneamento e modelagem dimensional
 │   └── generate_benchmark_dataset.py  # Gerador de benchmark hospitalar clínico-financeiro
 ├── powerbi/
+│   ├── dashboard_preview.html         # Painel HTML com dados agregados das rotas protegidas
+│   ├── dashboard.css                  # Layout responsivo do painel
+│   ├── dashboard.js                   # Filtros e visualizações com dados da API PySUS
 │   ├── dax_measures.dax               # Catálogo completo de métricas DAX prontas para Power BI
 │   └── dashboard_wireframe.md         # Wireframe detalhado das telas, layout e cores
 ├── docs/
@@ -192,7 +195,7 @@ O diretório `api/` contém funções serverless somente de leitura. Na Vercel, 
 | `GET /api/health` | Verifica se a função está ativa | — |
 | `GET /api/executive` | KPIs mensais por especialidade | `ano_mes`, `especialidade`, `limit` |
 | `GET /api/beds` | Admissões e capacidade informada por setor; ocupação retorna `null` sem censo diário | `ano_mes`, `id_leito`, `limit` |
-| `GET /api/risk` | Indicadores clínicos agregados por coorte; grupos com menos de 10 internações são ocultados | `cid_10`, `especialidade`, `grau_severidade`, `limit` |
+| `GET /api/risk` | Indicadores clínicos agregados por coorte; grupos com menos de 10 internações são ocultados | `ano_mes`, `cid_10`, `especialidade`, `grau_severidade`, `limit` |
 | `GET /api/filters?dimension=...` | Dimensões para filtros do dashboard | `dimension`: `procedures`, `diagnoses`, `beds` ou `months`; `limit` |
 
 Exemplos:

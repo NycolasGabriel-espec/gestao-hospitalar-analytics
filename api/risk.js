@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   const limit = parseLimit(req.query.limit);
   if (!limit) return sendJson(res, 400, { error: 'limit deve ser um inteiro entre 1 e 1000.' });
   const filters = {};
-  for (const key of ['cid_10', 'especialidade', 'grau_severidade']) {
+  for (const key of ['ano_mes', 'cid_10', 'especialidade', 'grau_severidade']) {
     if (req.query[key]) filters[key] = String(req.query[key]).slice(0, 80);
   }
   try {
