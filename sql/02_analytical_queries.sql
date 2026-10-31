@@ -111,7 +111,7 @@ WITH capacidade_mes AS (
         l.tipo_acomodacao,
         l.setor_hospitalar,
         l.leitos_operacionais,
-        COUNT(DISTINCT t.dia) AS dias_no_mes,
+        COUNT(*) AS dias_no_mes,
         -- Total de leitos-dia ofertados pela capacidade física:
         (l.leitos_operacionais * COUNT(DISTINCT t.dia)) AS total_leitos_dia_disponiveis
     FROM dim_tempo t

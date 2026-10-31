@@ -124,14 +124,16 @@ COMMENT ON TABLE fato_internacoes IS 'Tabela fato com histórico granular de int
 -- 4. ÍNDICES ANALÍTICOS (Otimização para consultas agregadas e filtros de BI)
 -- ------------------------------------------------------------------------------
 CREATE INDEX idx_fato_data_admissao ON fato_internacoes(id_data_admissao);
+CREATE INDEX idx_fato_data_leito ON fato_internacoes(id_data_admissao, id_leito);
+CREATE INDEX idx_fato_data_procedimento ON fato_internacoes(id_data_admissao, id_procedimento);
 CREATE INDEX idx_fato_data_alta ON fato_internacoes(id_data_alta);
 CREATE INDEX idx_fato_paciente ON fato_internacoes(id_paciente);
 CREATE INDEX idx_fato_procedimento ON fato_internacoes(id_procedimento);
 CREATE INDEX idx_fato_diagnostico ON fato_internacoes(cid_10);
 CREATE INDEX idx_fato_leito ON fato_internacoes(id_leito);
-CREATE INDEX idx_fato_readmissao ON fato_internacoes(readmissao_30d);
-CREATE INDEX idx_fato_margem ON fato_internacoes(margem_contribuicao);
-CREATE INDEX idx_fato_obito ON fato_internacoes(indicador_obito);
+-- readmissao_30d and indicador_obito are low-cardinality metrics aggregated
+-- over the fact table; standalone B-tree indexes do not help those scans.
+-- margem_contribuicao is aggregated/sorted in reports, not used as a row filter.
 
 -- ------------------------------------------------------------------------------
 -- 5. VIEWS ANALÍTICAS PARA BI E DASHBOARDS

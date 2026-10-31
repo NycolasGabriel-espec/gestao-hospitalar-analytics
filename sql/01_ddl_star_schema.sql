@@ -116,8 +116,11 @@ CREATE TABLE fato_internacoes (
 -- 7. ÍNDICES ANALÍTICOS (Para acelerar consultas de BI e agregações)
 -- ------------------------------------------------------------------------------
 CREATE INDEX idx_fato_data_admissao ON fato_internacoes(id_data_admissao);
+CREATE INDEX idx_fato_data_leito ON fato_internacoes(id_data_admissao, id_leito);
+CREATE INDEX idx_fato_data_procedimento ON fato_internacoes(id_data_admissao, id_procedimento);
 CREATE INDEX idx_fato_procedimento ON fato_internacoes(id_procedimento);
 CREATE INDEX idx_fato_diagnostico ON fato_internacoes(cid_10);
 CREATE INDEX idx_fato_leito ON fato_internacoes(id_leito);
-CREATE INDEX idx_fato_readmissao ON fato_internacoes(readmissao_30d);
-CREATE INDEX idx_fato_margem ON fato_internacoes(margem_contribuicao);
+-- readmissao_30d and indicador_obito are low-cardinality metrics aggregated
+-- over the fact table; standalone B-tree indexes do not help those scans.
+-- margem_contribuicao is aggregated/sorted in reports, not used as a row filter.
