@@ -16,8 +16,9 @@
     <h1 id="heading">Entre na sua conta</h1>
     <p id="intro">Entre com uma conta habilitada pela equipe responsável.</p>
     <form id="auth-form">
-      <label for="email">E-mail</label><input id="email" name="email" type="email" autocomplete="username" maxlength="254" required>
-      <label for="password">Senha</label><input id="password" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="1024" required>
+      <div id="email-field"><label for="email">E-mail</label><input id="email" name="email" type="email" autocomplete="username" maxlength="254" required></div>
+      <label id="password-label" for="password">Senha</label><input id="password" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="1024" required>
+      <div id="confirm-password-field" hidden><label for="confirm-password">Confirme a nova senha</label><input id="confirm-password" name="confirm_password" type="password" autocomplete="new-password" minlength="8" maxlength="1024"></div>
       <button id="submit" type="submit">Entrar</button>
     </form>
     <div class="message" id="message" role="status" aria-live="polite"></div>
@@ -27,8 +28,27 @@
     const form = document.querySelector('#auth-form');
     const message = document.querySelector('#message');
     const submit = document.querySelector('#submit');
+    const emailField = document.querySelector('#email-field');
+    const passwordLabel = document.querySelector('#password-label');
+    const confirmPasswordField = document.querySelector('#confirm-password-field');
+    const confirmPassword = document.querySelector('#confirm-password');
     const authParams = new URLSearchParams(location.hash.slice(1));
     const confirmedAccessToken = authParams.get('access_token');
+    const recovery = authParams.get('type') === 'recovery';
+
+    function showPasswordRecovery() {
+      document.querySelector('#heading').textContent = 'Defina sua nova senha';
+      document.querySelector('#intro').textContent = 'Escolha uma senha com pelo menos 8 caracteres.';
+      emailField.hidden = true;
+      form.email.required = false;
+      passwordLabel.textContent = 'Nova senha';
+      form.password.autocomplete = 'new-password';
+      confirmPasswordField.hidden = false;
+      confirmPassword.required = true;
+      submit.textContent = 'Salvar nova senha';
+      form.dataset.mode = 'recovery';
+    }
+
     if (confirmedAccessToken) {
       history.replaceState(null, '', location.pathname);
       if (!authParams.get('refresh_token')) {
@@ -45,15 +65,37 @@
       }).then(async (response) => {
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || 'Esta conta não está habilitada para acessar os dados.');
-        location.assign('/powerbi/dashboard_preview.html');
+        if (recovery) {
+          showPasswordRecovery();
+          message.style.color = '#137c70';
+          message.textContent = 'Link confirmado. Agora defina sua nova senha.';
+        } else {
+          location.assign('/powerbi/dashboard_preview.html');
+        }
       }).catch((error) => { message.textContent = error.message; });
       }
+    } else if (recovery) {
+      history.replaceState(null, '', location.pathname);
+      message.textContent = 'Link de recuperação inválido ou expirado. Solicite um novo e-mail.';
     }
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       submit.disabled = true;
       message.textContent = '';
       try {
+        if (form.dataset.mode === 'recovery') {
+          const password = form.password.value;
+          if (password !== confirmPassword.value) throw new Error('As senhas não coincidem.');
+          const response = await fetch('/api/auth/update-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password }),
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || 'Não foi possível atualizar a senha.');
+          location.assign('/powerbi/dashboard_preview.html');
+          return;
+        }
         const email = form.email.value.trim();
         const password = form.password.value;
         const response = await fetch('/api/auth/login', {
