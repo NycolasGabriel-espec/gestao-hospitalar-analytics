@@ -197,6 +197,30 @@ gestao-hospitalar-analytics/
 
 ## 🚀 7. Como Executar o Projeto
 
+### API REST na Vercel
+
+O diretório `api/` contém funções serverless somente de leitura para os dados analíticos. Importe o repositório na Vercel e configure `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY` nas variáveis de ambiente do projeto. A API também aceita `SUPABASE_KEY` como compatibilidade com a chave pública antiga. Não configure a chave `secret`/`service_role` para estas rotas.
+
+| Rota | Uso | Filtros opcionais |
+| --- | --- | --- |
+| `GET /api/health` | Verifica se a função está ativa | — |
+| `GET /api/executive` | KPIs mensais por especialidade | `ano_mes`, `especialidade`, `limit` |
+| `GET /api/beds` | Ocupação e giro por setor | `ano_mes`, `id_leito`, `limit` |
+| `GET /api/risk` | Detalhes clínicos sem identificadores de paciente/atendimento | `cid_10`, `especialidade`, `grau_severidade`, `limit` |
+| `GET /api/filters?dimension=...` | Dimensões para filtros do dashboard | `dimension`: `procedures`, `diagnoses`, `beds` ou `months`; `limit` |
+
+Exemplos:
+
+```bash
+curl 'https://SEU-PROJETO.vercel.app/api/health'
+curl 'https://SEU-PROJETO.vercel.app/api/executive?ano_mes=2023-01&limit=50'
+curl 'https://SEU-PROJETO.vercel.app/api/beds?ano_mes=2023-01'
+curl 'https://SEU-PROJETO.vercel.app/api/risk?grau_severidade=Crítico&limit=25'
+curl 'https://SEU-PROJETO.vercel.app/api/filters?dimension=procedures'
+```
+
+As rotas retornam JSON no formato `{ "data": [...], "count": 1, "limit": 100 }`. O limite por chamada é 1.000 linhas. É necessário executar `sql/supabase_setup.sql` no Supabase para criar tabelas e views. Os dados seguem as permissões RLS e os grants configurados nesse script.
+
 ### Pré-requisitos
 * Python 3.10+ instalado
 * Pip atualizado
