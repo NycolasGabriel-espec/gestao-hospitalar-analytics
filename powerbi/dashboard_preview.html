@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f4f7f5">
+  <meta name="theme-color" content="#f3f6f5">
   <meta name="description" content="Painel de internações do SIH/SUS com dados transformados pelo pipeline PySUS.">
   <title>Painel de internações — Hospital Analytics</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -35,11 +35,15 @@
         <h1 id="page-title">Panorama de internações</h1>
         <p class="lede">Leia volume, permanência e desfechos por competência e especialidade.</p>
       </div>
-      <div class="filters" aria-label="Filtros do painel">
-        <label for="period-filter">Competência</label>
-        <select id="period-filter" disabled><option value="">Carregando…</option></select>
-        <label class="sr-only" for="specialty-filter">Especialidade</label>
-        <select id="specialty-filter" disabled><option value="">Todas as especialidades</option></select>
+      <div class="filters" role="group" aria-label="Filtros do painel">
+        <div class="filter-field">
+          <label for="period-filter">Competência</label>
+          <select id="period-filter" disabled><option value="">Carregando…</option></select>
+        </div>
+        <div class="filter-field">
+          <label for="specialty-filter">Especialidade</label>
+          <select id="specialty-filter" disabled><option value="">Todas as especialidades</option></select>
+        </div>
       </div>
     </section>
 

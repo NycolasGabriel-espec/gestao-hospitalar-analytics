@@ -59,7 +59,7 @@ Este documento detalha como conectar o projeto **Healthcare Analytics** ao **Sup
 3. Copie todo o conteúdo do arquivo e cole no editor do Supabase.
 4. Clique em **"RUN"** (ou `Ctrl + Enter` / `Cmd + Enter`).
 5. O script roda em uma transação, preserva as tabelas, remove idade exata e município da dimensão, substitui a view clínica por agregações com mínimo de 10 registros, deixa ocupação indisponível sem censo diário, restringe grants e bloqueia grants padrão em novas tabelas/sequências criadas por `postgres` em `public`. Novos objetos precisam de grants explícitos e revisão de RLS. Faça backup e revise dados antigos antes da atualização.
-6. Desative o cadastro público em **Authentication → Providers → Email** e limite as URLs de redirecionamento aos domínios usados. O login deste protótipo não implementa desafio MFA nem impõe AAL2; não anuncie MFA como obrigatório até adicionar esse fluxo e a regra de autorização correspondente.
+6. Desative o cadastro público em **Authentication → Providers → Email** e limite as URLs de redirecionamento aos domínios usados. O painel usa links mágicos de uso único para contas existentes, sem senha. O login deste protótipo não implementa desafio MFA nem impõe AAL2; não anuncie MFA como obrigatório até adicionar esse fluxo e a regra de autorização correspondente.
 7. Crie/invite as contas por um fluxo administrativo confiável e defina `app_metadata.hospital_analytics_access` como booleano `true`. O próprio usuário não pode alterar `app_metadata`; não use `user_metadata` para autorização.
 
 ---
@@ -195,9 +195,9 @@ print(df_kpi.head())
 
 ### Exemplo 2: Consulta via API da aplicação
 ```bash
-curl -c cookies.txt -X POST 'https://<APP>/api/auth/login' \
+curl -X POST 'https://<APP>/api/auth/magic-link' \
   -H 'Origin: https://<APP>' -H 'Content-Type: application/json' \
-  --data '{"email":"<conta-aprovada>","password":"<senha>"}'
+  --data '{"email":"<conta-aprovada>"}'
 curl -b cookies.txt 'https://<APP>/api/executive?ano_mes=2023-01'
 ```
 

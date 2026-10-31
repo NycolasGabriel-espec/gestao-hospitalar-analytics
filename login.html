@@ -3,23 +3,45 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f6f8f7">
+  <meta name="theme-color" content="#f3f6f5">
+  <meta name="description" content="Acesso autorizado ao painel Hospital Analytics.">
   <title>Acessar — Hospital Analytics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/site.css">
   <style>
-    :root{font-family:Inter,"DM Sans",system-ui,-apple-system,sans-serif;color:#102d3a;background:#f6f8f7;font-synthesis:none}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px}.card{width:min(100%,430px);background:#fff;border:1px solid #dce5e2;border-radius:12px;padding:38px;box-shadow:0 22px 60px #102d3a12}.brand{display:flex;align-items:center;gap:11px;font-weight:750;letter-spacing:-.04em}.mark{height:34px;width:34px;border-radius:10px;background:#137c70;color:#fff;display:grid;place-items:center;font-size:22px}.eyebrow{margin:32px 0 9px;color:#137c70;text-transform:uppercase;letter-spacing:.13em;font-size:10px;font-weight:750}h1{font-size:30px;letter-spacing:-.055em;margin:0}p{font-size:14px;color:#60737a;line-height:1.6;margin:10px 0 26px}label{display:block;font-size:12px;font-weight:650;margin:17px 0 7px}input{width:100%;height:46px;border:1px solid #dce5e2;border-radius:6px;padding:0 12px;font:inherit;color:#102d3a}input:focus{outline:2px solid #137c7040;border-color:#137c70}button{width:100%;height:47px;margin-top:21px;border:0;border-radius:6px;background:#137c70;color:#fff;font:inherit;font-weight:700;cursor:pointer}button:disabled{opacity:.65;cursor:wait}.switch{display:block;margin:19px auto 0;background:none;color:#137c70;height:auto;font-size:12px}.message{min-height:20px;margin:14px 0 0;color:#9a4b32;font-size:12px}.back{display:block;margin-top:24px;color:#60737a;font-size:12px;text-align:center;text-decoration:none}
+    body.login-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--paper); }
+    .auth-card { width: min(100%, 440px); padding: 34px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--surface); box-shadow: 0 18px 44px rgb(16 42 49 / 8%); }
+    .auth-card .brand { margin-bottom: 29px; }
+    .auth-card .eyebrow { margin: 0 0 9px; color: var(--teal-dark); font-size: 9px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+    .auth-card h1 { margin: 0; color: var(--ink-strong); font: 700 28px/1.2 var(--display); letter-spacing: -.05em; }
+    .auth-intro { margin: 9px 0 23px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .auth-card label { display: block; margin: 15px 0 6px; color: var(--ink-soft); font-size: 11px; font-weight: 700; }
+    .auth-card input { width: 100%; height: 43px; padding: 0 11px; border: 1px solid var(--line-strong); border-radius: 4px; background: #fff; color: var(--ink-strong); font: 12px var(--font); }
+    .auth-card input:focus { outline: 3px solid rgb(20 121 109 / 18%); border-color: var(--teal); }
+    .auth-submit { width: 100%; min-height: 43px; margin-top: 20px; border: 1px solid var(--teal); border-radius: 4px; background: var(--teal); color: #fff; font: 700 12px var(--font); cursor: pointer; transition: background .16s ease, border-color .16s ease; }
+    .auth-submit:hover { border-color: var(--teal-dark); background: var(--teal-dark); }
+    .auth-submit:disabled { opacity: .65; cursor: wait; }
+    .message { min-height: 18px; margin: 13px 0 0; color: #93463b; font-size: 11px; line-height: 1.5; }
+    .back { display: block; margin-top: 20px; color: var(--muted); font-size: 11px; text-align: center; text-decoration: underline; text-underline-offset: 3px; }
+    .back:hover { color: var(--teal-dark); }
+    @media (max-width: 420px) { body.login-page { padding: 16px; } .auth-card { padding: 25px 21px; } }
   </style>
 </head>
-<body>
-  <main class="card">
-    <div class="brand"><span class="mark" aria-hidden="true">+</span>hospital analytics</div>
+<body class="login-page">
+  <main class="auth-card">
+    <a class="brand" href="/" aria-label="Hospital Analytics, voltar ao início"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></svg></span><span>hospital <b>analytics</b></span></a>
     <div class="eyebrow">Acesso seguro</div>
     <h1 id="heading">Entre na sua conta</h1>
-    <p id="intro">Entre com uma conta habilitada pela equipe responsável.</p>
-    <form id="auth-form">
+    <p class="auth-intro" id="intro">Informe o e-mail da sua conta autorizada. Enviaremos um link de acesso de uso único.</p>
+    <form id="auth-form" aria-labelledby="heading">
       <div id="email-field"><label for="email">E-mail</label><input id="email" name="email" type="email" autocomplete="username" maxlength="254" required></div>
-      <label id="password-label" for="password">Senha</label><input id="password" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="1024" required>
-      <div id="confirm-password-field" hidden><label for="confirm-password">Confirme a nova senha</label><input id="confirm-password" name="confirm_password" type="password" autocomplete="new-password" minlength="8" maxlength="1024"></div>
-      <button id="submit" type="submit">Entrar</button>
+      <div id="password-fields" hidden>
+        <label id="password-label" for="password">Nova senha</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="1024">
+        <div id="confirm-password-field"><label for="confirm-password">Confirme a nova senha</label><input id="confirm-password" name="confirm_password" type="password" autocomplete="new-password" minlength="8" maxlength="1024"></div>
+      </div>
+      <button class="auth-submit" id="submit" type="submit">Enviar link de acesso</button>
     </form>
     <div class="message" id="message" role="status" aria-live="polite"></div>
     <a class="back" href="/">Voltar ao início</a>
@@ -29,8 +51,7 @@
     const message = document.querySelector('#message');
     const submit = document.querySelector('#submit');
     const emailField = document.querySelector('#email-field');
-    const passwordLabel = document.querySelector('#password-label');
-    const confirmPasswordField = document.querySelector('#confirm-password-field');
+    const passwordFields = document.querySelector('#password-fields');
     const confirmPassword = document.querySelector('#confirm-password');
     const authParams = new URLSearchParams(location.hash.slice(1));
     const confirmedAccessToken = authParams.get('access_token');
@@ -40,10 +61,7 @@
       document.querySelector('#heading').textContent = 'Defina sua nova senha';
       document.querySelector('#intro').textContent = 'Escolha uma senha com pelo menos 8 caracteres.';
       emailField.hidden = true;
-      form.email.required = false;
-      passwordLabel.textContent = 'Nova senha';
-      form.password.autocomplete = 'new-password';
-      confirmPasswordField.hidden = false;
+      passwordFields.hidden = false;
       confirmPassword.required = true;
       submit.textContent = 'Salvar nova senha';
       form.dataset.mode = 'recovery';
@@ -97,15 +115,17 @@
           return;
         }
         const email = form.email.value.trim();
-        const password = form.password.value;
-        const response = await fetch('/api/auth/login', {
+        const response = await fetch('/api/auth/magic-link', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email }),
         });
         const result = await response.json();
-        if (!response.ok) throw new Error(result.error || 'Não foi possível autenticar.');
-        location.assign('/powerbi/dashboard_preview.html');
+        if (!response.ok) throw new Error(result.error || 'Não foi possível enviar o link agora.');
+        message.style.color = '#137c70';
+        message.textContent = 'Se este e-mail estiver autorizado, enviaremos um link de acesso. Verifique sua caixa de entrada.';
+        submit.textContent = 'Link solicitado';
+        submit.disabled = true;
       } catch (error) {
         message.style.color = '#9a4b32';
         message.textContent = error.message;
