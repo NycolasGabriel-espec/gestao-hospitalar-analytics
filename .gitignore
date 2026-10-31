@@ -16,10 +16,10 @@ venv/
 .env.*
 !.env.example
 
-# Dados brutos pesados (podem ser baixados via script)
-data/raw/*.parquet
-data/raw/*.dbc
-data/raw/*.csv
+# Dados SIH/SUS e datasets processados podem conter dados de saúde pseudonimizados.
+# Mantenha-os fora do Git e compartilhe apenas agregações revisadas.
+/data/raw/
+/data/processed/
 
 # DuckDB lock/wal temporários
 *.duckdb.wal

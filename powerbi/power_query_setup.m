@@ -35,15 +35,12 @@ in
 // CONSULTA 2: dim_paciente
 // ------------------------------------------------------------------------------
 let
-    Fonte = Csv.Document(File.Contents(PastaProjeto & "dim_paciente.csv"), [Delimiter=";", Columns=6, Encoding=65001, QuoteStyle=QuoteStyle.None]),
+    Fonte = Csv.Document(File.Contents(PastaProjeto & "dim_paciente.csv"), [Delimiter=";", Columns=3, Encoding=65001, QuoteStyle=QuoteStyle.None]),
     Cabecalhos = Table.PromoteHeaders(Fonte, [PromoteAllScalars=true]),
     Tipos = Table.TransformColumnTypes(Cabecalhos,{
         {"id_paciente", type text}, 
         {"sexo", type text}, 
-        {"idade", Int64.Type}, 
-        {"faixa_etaria", type text}, 
-        {"municipio_residencia", type text}, 
-        {"uf_residencia", type text}
+        {"faixa_etaria", type text}
     })
 in
     Tipos
@@ -99,7 +96,7 @@ in
 // CONSULTA 6: fato_internacoes
 // ------------------------------------------------------------------------------
 let
-    Fonte = Csv.Document(File.Contents(PastaProjeto & "fato_internacoes.csv"), [Delimiter=";", Columns=18, Encoding=65001, QuoteStyle=QuoteStyle.None]),
+    Fonte = Csv.Document(File.Contents(PastaProjeto & "fato_internacoes.csv"), [Delimiter=";", Columns=20, Encoding=65001, QuoteStyle=QuoteStyle.None]),
     Cabecalhos = Table.PromoteHeaders(Fonte, [PromoteAllScalars=true]),
     Tipos = Table.TransformColumnTypes(Cabecalhos,{
         {"id_atendimento", type text}, 

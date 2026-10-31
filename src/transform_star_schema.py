@@ -6,83 +6,99 @@ Autor: Nycolas Gabriel / Healthcare Analytics
 
 import os
 import hashlib
-from datetime import datetime, timedelta
+import hmac
 from pathlib import Path
 import pandas as pd
 import duckdb
 
-def get_specialty_and_protocol(proc_code: str) -> tuple[str, str, float]:
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+except ImportError:
+    pass
+
+def get_specialty_and_complexity(proc_code: str) -> tuple[str, str]:
     """
-    Classifica a especialidade médica, complexidade e TMP de protocolo esperado
-    a partir dos prefixos e regras da Tabela Unificada de Procedimentos do SUS (SIGTAP).
+    Gera categorias heurísticas a partir do prefixo SIGTAP; não substitui catálogo oficial.
     """
-    code_str = str(proc_code).zfill(10)
+    raw_code = str(proc_code).strip()
+    if raw_code == 'SEM_INFO':
+        return ("Não Informado", "Não Informada")
+    code_str = raw_code.zfill(10)
     prefix_sub = code_str[:4]
     
     # 04 = Procedimentos Cirúrgicos
     if code_str.startswith("04"):
         if prefix_sub in ["0408", "0409"]:
-            return ("Ortopedia & Traumatologia", "Alta Complexidade", 4.0)
+            return ("Ortopedia & Traumatologia", "Alta Complexidade")
         elif prefix_sub in ["0406", "0407"]:
-            return ("Cardiologia Cirúrgica", "Alta Complexidade", 5.5)
+            return ("Cardiologia Cirúrgica", "Alta Complexidade")
         elif prefix_sub in ["0403", "0404"]:
-            return ("Cirurgia Geral & Digestiva", "Média Complexidade", 3.0)
+            return ("Cirurgia Geral & Digestiva", "Média Complexidade")
         elif prefix_sub in ["0411", "0412"]:
-            return ("Obstetrícia & Ginecologia", "Média Complexidade", 2.0)
+            return ("Obstetrícia & Ginecologia", "Média Complexidade")
         elif prefix_sub in ["0401", "0402"]:
-            return ("Neurologia & Neurocirurgia", "Alta Complexidade", 6.0)
+            return ("Neurologia & Neurocirurgia", "Alta Complexidade")
         else:
-            return ("Cirurgia Geral", "Média Complexidade", 3.5)
+            return ("Cirurgia Geral", "Média Complexidade")
     # 03 = Procedimentos Clínicos
     elif code_str.startswith("03"):
         if prefix_sub in ["0303", "0304"]:
-            return ("Clínica Médica / Infectologia", "Média Complexidade", 4.5)
+            return ("Clínica Médica / Infectologia", "Média Complexidade")
         elif prefix_sub in ["0301", "0302"]:
-            return ("Pediatria Clínica", "Média Complexidade", 3.0)
+            return ("Pediatria Clínica", "Média Complexidade")
         elif prefix_sub in ["0305", "0306"]:
-            return ("Oncologia Clínica", "Alta Complexidade", 5.0)
+            return ("Oncologia Clínica", "Alta Complexidade")
         else:
-            return ("Clínica Médica", "Média Complexidade", 4.0)
+            return ("Clínica Médica", "Média Complexidade")
     else:
-        return ("Outras Especialidades", "Média Complexidade", 3.0)
+        return ("Outras Especialidades", "Média Complexidade")
 
-def get_cid_chapter_and_severity(cid_code: str) -> tuple[str, str, str]:
+def get_cid_chapter(cid_code: str) -> str:
     """
-    Mapeia os grandes capítulos da CID-10 e infere severidade clínica estimada.
+    Mapeia um capítulo amplo pela letra do CID; não infere severidade clínica.
     """
     cid = str(cid_code).upper().strip()
     if not cid:
-        return ("Não Informado", "Não Classificado", "Leve")
+        return "Não Informado"
         
     letter = cid[0]
     
     if letter in ['A', 'B']:
-        return ("Doenças Infecciosas e Parasitárias", "Gastroenterite / Sepse / Infecções", "Moderado")
-    elif letter == 'C' or (letter == 'D' and cid[1:3] <= '48'):
-        return ("Neoplasias (Tumores)", "Câncer e Doenças Hematológicas", "Alto")
+        return "Doenças Infecciosas e Parasitárias"
+    elif letter == 'C' or (
+        letter == 'D' and len(cid) >= 3 and cid[1:3].isdigit() and int(cid[1:3]) <= 48
+    ):
+        return "Neoplasias (Tumores)"
     elif letter == 'E':
-        return ("Doenças Endócrinas e Metabólicas", "Diabetes / Distúrbios Metabólicos", "Moderado")
+        return "Doenças Endócrinas e Metabólicas"
     elif letter == 'I':
-        return ("Doenças do Aparelho Circulatório", "Infarto, AVC, Insuficiência Cardíaca", "Crítico")
+        return "Doenças do Aparelho Circulatório"
     elif letter == 'J':
-        return ("Doenças do Aparelho Respiratório", "Pneumonia, DPOC, Asma Aguda", "Alto")
+        return "Doenças do Aparelho Respiratório"
     elif letter == 'K':
-        return ("Doenças do Aparelho Digestivo", "Apendicite, Hérnia, Colecistite", "Moderado")
+        return "Doenças do Aparelho Digestivo"
     elif letter == 'M':
-        return ("Doenças do Sistema Osteomuscular", "Artrose, Fraturas Patológicas, Deformidades", "Moderado")
+        return "Doenças do Sistema Osteomuscular"
     elif letter == 'O':
-        return ("Gravidez, Parto e Puerpério", "Parto Cesáreo / Normal e Complicações", "Leve")
+        return "Gravidez, Parto e Puerpério"
     elif letter == 'S' or letter == 'T':
-        return ("Lesões, Envenenamentos e Traumas", "Fraturas, Politraumas, Acidentes", "Alto")
+        return "Lesões, Envenenamentos e Traumas"
     else:
-        return ("Outros Capítulos CID-10", "Condições Clínicas Diversas", "Moderado")
+        return "Outros Capítulos CID-10"
 
 def build_star_schema(input_parquet: str, output_dir: str = "data/processed"):
     """
     Processa os dados brutos e gera o modelo Star Schema em Parquet, CSV e DuckDB.
     """
+    hmac_key = os.getenv("PATIENT_DATA_HMAC_KEY", "").encode("utf-8")
+    if len(hmac_key) < 32:
+        raise ValueError("Defina PATIENT_DATA_HMAC_KEY com pelo menos 32 caracteres aleatórios antes de processar dados do SIH/SUS.")
+
     out_path = Path(output_dir)
-    out_path.mkdir(parents=True, exist_ok=True)
+    out_path.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if os.name != "nt":
+        out_path.chmod(0o700)
     
     print(f"🔄 Carregando dados brutos de: {input_parquet}")
     df_raw = pd.read_parquet(input_parquet)
@@ -90,74 +106,110 @@ def build_star_schema(input_parquet: str, output_dir: str = "data/processed"):
     
     # 1. Filtro e saneamento básico de colunas essenciais
     cols_necessarias = [
-        'N_AIH', 'DT_INTER', 'DT_SAIDA', 'DIAS_PERM', 'DIAG_PRINC', 'PROC_REA',
-        'VAL_TOT', 'VAL_SH', 'VAL_SP', 'VAL_ORTP', 'VAL_SADT', 'VAL_UTI',
-        'SEXO', 'IDADE', 'MORTE', 'COBRANCA', 'CNES', 'UTI_MES_TO', 'MUNIC_RES'
+        'N_AIH', 'DT_INTER', 'DT_SAIDA', 'DIAS_PERM', 'QT_DIARIAS',
+        'DIAG_PRINC', 'PROC_REA', 'VAL_TOT', 'SEXO', 'IDADE', 'COD_IDADE',
+        'MORTE', 'UTI_MES_TO'
     ]
+    campos_obrigatorios = {'N_AIH', 'DT_INTER'}
+    campos_ausentes = sorted(campos_obrigatorios - set(df_raw.columns))
+    if campos_ausentes:
+        raise ValueError(f"O arquivo SIH/SUS não contém campos obrigatórios: {', '.join(campos_ausentes)}")
+
     cols_presentes = [c for c in cols_necessarias if c in df_raw.columns]
     df = df_raw[cols_presentes].copy()
+    for column in set(cols_necessarias) - set(cols_presentes):
+        df[column] = pd.NA
+    df['N_AIH'] = df['N_AIH'].astype('string').str.strip().str.upper().str.replace(r'\.0+$', '', regex=True)
+    df['N_AIH'] = df['N_AIH'].mask(df['N_AIH'].isin(['', 'NAN', 'NONE', '<NA>']))
+    df = df.dropna(subset=['N_AIH']).copy()
+    if df.empty:
+        raise ValueError("O arquivo SIH/SUS não contém números de AIH válidos.")
     
     # Converte strings e tipos
-    df['id_atendimento'] = df['N_AIH'].astype(str)
+    def pseudonymize(namespace: str, source_value: object) -> str:
+        source_text = str(source_value).strip()
+        source_text = source_text[:-2] if source_text.endswith('.0') else source_text
+        message = f"{namespace}:{source_text}".encode("utf-8")
+        return hmac.new(hmac_key, message, hashlib.sha256).hexdigest()
+
+    def normalize_code(series: pd.Series, sentinel: str, *, width: int | None = None) -> pd.Series:
+        values = series.astype('string').str.strip().str.upper()
+        values = values.str.replace(r'\.0+$', '', regex=True)
+        values = values.mask(values.isin(['', 'NAN', 'NONE', '<NA>']))
+        if width:
+            numeric = values.str.fullmatch(r'\d+', na=False)
+            values.loc[numeric] = values.loc[numeric].str.zfill(width)
+        return values.fillna(sentinel).astype(str)
+
+    # Normalizar chaves antes de criar dimensões e fatos para que códigos
+    # ausentes não virem a string "nan" e quebrem as FKs na carga.
+    df['PROC_REA'] = normalize_code(df['PROC_REA'], 'SEM_INFO', width=10)
+    df['DIAG_PRINC'] = normalize_code(df['DIAG_PRINC'], 'SEM_INFO')
+
+    # O número de AIH identifica a internação, não uma pessoa. Use-o apenas como
+    # chave HMAC para evitar que o valor de origem seja gravado nos artefatos.
+    df['id_atendimento'] = df['N_AIH'].map(lambda value: pseudonymize('atendimento', value))
+    duplicate_count = int(df.duplicated(subset=['id_atendimento']).sum())
+    if duplicate_count:
+        print(f"⚠️ AIHs duplicadas removidas: {duplicate_count:,} (mantida a primeira ocorrência).")
+        df = df.drop_duplicates(subset=['id_atendimento'], keep='first').copy()
     
     # Datas
-    df['data_admissao'] = pd.to_datetime(df['DT_INTER'].astype(str).str.strip(), format='%Y%m%d', errors='coerce')
-    df['data_alta'] = pd.to_datetime(df['DT_SAIDA'].astype(str).str.strip(), format='%Y%m%d', errors='coerce')
+    def parse_sih_date(series: pd.Series) -> pd.Series:
+        values = series.astype('string').str.strip().str.replace(r'\.0+$', '', regex=True)
+        return pd.to_datetime(values, format='%Y%m%d', errors='coerce')
+
+    df['data_admissao'] = parse_sih_date(df['DT_INTER'])
+    df['data_alta'] = parse_sih_date(df['DT_SAIDA'])
     
-    # Preenchimento de datas nulas caso necessário
+    # Mantém valores ausentes como desconhecidos; não cria alta/permanência estimadas.
     df = df.dropna(subset=['data_admissao']).copy()
-    df['data_alta'] = df['data_alta'].fillna(df['data_admissao'] + pd.to_timedelta(df['DIAS_PERM'].fillna(1).astype(int), unit='D'))
+    if df.empty:
+        raise ValueError("Nenhum registro contém uma data de admissão válida no formato SIH/SUS YYYYMMDD.")
     
     # Métricas numéricas
-    df['dias_permanencia'] = pd.to_numeric(df['DIAS_PERM'], errors='coerce').fillna(1).astype(int)
-    # Se dias de permanência for 0 (alta no mesmo dia), ajusta para 1 leito-dia
-    df['dias_permanencia'] = df['dias_permanencia'].apply(lambda x: 1 if x <= 0 else x)
-    df['dias_uti'] = pd.to_numeric(df.get('UTI_MES_TO', 0), errors='coerce').fillna(0).astype(int)
+    def nonnegative_integer(series: pd.Series) -> pd.Series:
+        values = pd.to_numeric(series, errors='coerce')
+        values = values.where(values.ge(0) & values.mod(1).eq(0))
+        return values.astype('Int64')
+
+    # Evita datas de saída impossíveis e valores negativos/fracionários em
+    # campos que representam contagens inteiras.
+    df.loc[df['data_alta'] < df['data_admissao'], 'data_alta'] = pd.NaT
+    df['dias_permanencia'] = nonnegative_integer(df['DIAS_PERM'])
+    df['dias_uti'] = nonnegative_integer(df['UTI_MES_TO'])
     
-    # Valores financeiros (R$)
-    df['receita_faturada'] = pd.to_numeric(df['VAL_TOT'], errors='coerce').fillna(0.0)
-    df['custo_hospitalar'] = pd.to_numeric(df['VAL_SH'], errors='coerce').fillna(0.0)
-    df['custo_servicos_profissionais'] = pd.to_numeric(df['VAL_SP'], errors='coerce').fillna(0.0)
-    df['custo_opme'] = pd.to_numeric(df.get('VAL_ORTP', 0.0), errors='coerce').fillna(0.0)
-    df['custo_sadt'] = pd.to_numeric(df.get('VAL_SADT', 0.0), errors='coerce').fillna(0.0)
-    
-    # Custo direto total
-    df['custo_total'] = df['custo_hospitalar'] + df['custo_servicos_profissionais'] + df['custo_opme'] + df['custo_sadt']
-    # Caso custo_total seja 0, aloca baseado em percentual da receita
-    df.loc[df['custo_total'] <= 0, 'custo_total'] = df['receita_faturada'] * 0.85
-    
-    # Margem de Contribuição
-    df['margem_contribuicao'] = df['receita_faturada'] - df['custo_total']
+    # VAL_TOT é o valor registrado para a AIH, não comprova receita recebida.
+    df['receita_faturada'] = pd.to_numeric(df['VAL_TOT'], errors='coerce')
+    # O SIH/SUS informa valores da AIH, não custos contábeis do hospital.
+    # Não estime custos internos nem margem a partir desses componentes.
+    unknown_amount = pd.Series(float('nan'), index=df.index, dtype='float64')
+    df['custo_hospitalar'] = unknown_amount.copy()
+    df['custo_servicos_profissionais'] = unknown_amount.copy()
+    df['custo_opme'] = unknown_amount.copy()
+    df['custo_sadt'] = unknown_amount.copy()
+    df['custo_total'] = unknown_amount.copy()
+    df['margem_contribuicao'] = unknown_amount.copy()
     
     # Desfecho clínico
-    df['indicador_obito'] = pd.to_numeric(df.get('MORTE', 0), errors='coerce').fillna(0).astype(int)
-    df['status_desfecho'] = df['indicador_obito'].apply(lambda x: 'Óbito Hospitalar' if x == 1 else 'Alta Curado/Melhorado')
+    obito = pd.to_numeric(df['MORTE'], errors='coerce')
+    df['indicador_obito'] = obito.where(obito.isin([0, 1])).astype('Int64')
+    df['status_desfecho'] = df['indicador_obito'].map({
+        1: 'Óbito Hospitalar',
+        0: 'Saída sem óbito (tipo não classificado)',
+    })
     
-    # ID Paciente (Hash anônimo determinístico com base em município, idade, sexo)
-    df['id_paciente'] = df.apply(
-        lambda r: hashlib.md5(f"{r.get('MUNIC_RES','')}-{r.get('IDADE','')}-{r.get('SEXO','')}-{r.name % 300}".encode()).hexdigest()[:16],
-        axis=1
-    )
-    
-    # Cálculo de Readmissão em 30 Dias (pacientes com mais de 1 internação dentro da janela de 30 dias)
-    df = df.sort_values(by=['id_paciente', 'data_admissao'])
-    df['prev_alta'] = df.groupby('id_paciente')['data_alta'].shift(1)
-    df['dias_desde_ultima_alta'] = (df['data_admissao'] - df['prev_alta']).dt.days
-    df['readmissao_30d'] = df['dias_desde_ultima_alta'].apply(lambda d: True if (pd.notnull(d) and 0 <= d <= 30) else False)
+    # O SIH/SUS usado aqui não fornece uma chave persistente de pessoa. Não
+    # agrupe registros por idade/sexo/município e não invente readmissões.
+    df['id_paciente'] = df['N_AIH'].map(lambda value: pseudonymize('pessoa-nao-identificada', value))
+    df['readmissao_30d'] = None
     
     # Chaves de Data
     df['id_data_admissao'] = df['data_admissao'].dt.strftime('%Y%m%d').astype(int)
-    df['id_data_alta'] = df['data_alta'].dt.strftime('%Y%m%d').astype(int)
+    df['id_data_alta'] = df['data_alta'].dt.strftime('%Y%m%d').astype('Int64')
     
-    # Alocação de Setor e Leito
-    def alocar_leito(r):
-        if r['dias_uti'] > 0:
-            return 'LEITO_UTI_01'
-        elif str(r['PROC_REA']).startswith('04'):
-            return 'LEITO_CIR_01'
-        else:
-            return 'LEITO_ENF_01'
-    df['id_leito'] = df.apply(alocar_leito, axis=1)
+    # SIH/SUS não identifica o setor/leito assistencial desta internação.
+    df['id_leito'] = 'LEITO_NAO_INFORMADO'
     
     # --------------------------------------------------------------------------
     # 2. CONSTRUÇÃO DAS TABELAS DIMENSIONAIS
@@ -165,8 +217,9 @@ def build_star_schema(input_parquet: str, output_dir: str = "data/processed"):
     print("🛠️  Construindo Dimensões...")
     
     # DIMENSÃO TEMPO
-    min_date = df['data_admissao'].min() - pd.Timedelta(days=5)
-    max_date = df['data_alta'].max() + pd.Timedelta(days=5)
+    date_bounds = pd.concat([df['data_admissao'], df['data_alta']]).dropna()
+    min_date = date_bounds.min() - pd.Timedelta(days=5)
+    max_date = date_bounds.max() + pd.Timedelta(days=5)
     date_range = pd.date_range(min_date, max_date, freq='D')
     
     dim_tempo = pd.DataFrame({
@@ -183,82 +236,81 @@ def build_star_schema(input_parquet: str, output_dir: str = "data/processed"):
     })
     
     # DIMENSÃO PACIENTE
-    def categorizar_faixa_etaria(idade):
+    def categorizar_faixa_etaria(idade, codigo_idade):
         try:
-            idade_int = int(idade)
-            if idade_int < 18:
+            valor = int(idade)
+            unidade = int(codigo_idade)
+            if unidade == 5:
+                return '80+ anos'
+            if unidade == 4:
+                idade_anos = valor
+            elif unidade == 3:
+                idade_anos = valor / 12
+            elif unidade == 2:
+                idade_anos = valor / 365.25
+            else:
+                return 'Faixa Desconhecida'
+            if idade_anos < 18:
                 return '0-17 anos'
-            elif idade_int < 40:
+            elif idade_anos < 40:
                 return '18-39 anos'
-            elif idade_int < 60:
+            elif idade_anos < 60:
                 return '40-59 anos'
-            elif idade_int < 80:
+            elif idade_anos < 80:
                 return '60-79 anos'
             else:
                 return '80+ anos'
-        except:
+        except (TypeError, ValueError, OverflowError):
             return 'Faixa Desconhecida'
-            
-    df_pacientes = df[['id_paciente', 'SEXO', 'IDADE', 'MUNIC_RES']].drop_duplicates(subset=['id_paciente']).copy()
+
+    age_code = df['COD_IDADE'] if 'COD_IDADE' in df.columns else pd.Series(pd.NA, index=df.index)
+    df_pacientes = df[['id_paciente', 'SEXO', 'IDADE']].copy()
+    df_pacientes['COD_IDADE'] = age_code
+    df_pacientes = df_pacientes.drop_duplicates(subset=['id_paciente']).copy()
     dim_paciente = pd.DataFrame({
         'id_paciente': df_pacientes['id_paciente'],
-        'sexo': df_pacientes['SEXO'].astype(str).map({'1': 'M', '3': 'F'}).fillna('M'),
-        'idade': pd.to_numeric(df_pacientes['IDADE'], errors='coerce').fillna(45).astype(int),
-        'faixa_etaria': df_pacientes['IDADE'].apply(categorizar_faixa_etaria),
-        'municipio_residencia': df_pacientes['MUNIC_RES'].astype(str),
-        'uf_residencia': 'BR'
+        'sexo': df_pacientes['SEXO'].astype(str).map({'1': 'M', '3': 'F'}).fillna('U'),
+        'faixa_etaria': [
+            categorizar_faixa_etaria(idade, codigo)
+            for idade, codigo in zip(df_pacientes['IDADE'], df_pacientes['COD_IDADE'])
+        ],
     })
     
     # DIMENSÃO PROCEDIMENTO
-    procs_unicos = df['PROC_REA'].dropna().unique()
+    procs_unicos = df['PROC_REA'].unique()
     proc_rows = []
     for p in procs_unicos:
-        especialidade, complexidade, tmp_proto = get_specialty_and_protocol(p)
-        desc = f"Procedimento SUS {p} - {especialidade}"
+        especialidade, complexidade = get_specialty_and_complexity(p)
         proc_rows.append({
             'id_procedimento': str(p),
-            'descricao_procedimento': desc,
+            'descricao_procedimento': 'Procedimento não informado na fonte' if p == 'SEM_INFO' else f'SIGTAP {p} (descrição/classificação a validar)',
             'especialidade': especialidade,
             'complexidade': complexidade,
-            'porte_cirurgico': 'Cirúrgico' if str(p).startswith('04') else 'Clínico',
-            'tmp_protocolo_previsto': tmp_proto
+            'porte_cirurgico': 'Não informado' if p == 'SEM_INFO' else ('Cirúrgico' if str(p).startswith('04') else 'Clínico'),
+            'tmp_protocolo_previsto': None
         })
     dim_procedimento = pd.DataFrame(proc_rows)
     
     # DIMENSÃO DIAGNÓSTICO (CID-10)
-    cids_unicos = df['DIAG_PRINC'].dropna().unique()
+    cids_unicos = df['DIAG_PRINC'].unique()
     cid_rows = []
     for c in cids_unicos:
-        cap, desc, severidade = get_cid_chapter_and_severity(c)
+        cap = get_cid_chapter(c)
         cid_rows.append({
             'cid_10': str(c).strip(),
-            'descricao_cid': desc,
-            'capitulo_cid': cap,
-            'grau_severidade': severidade
+            'descricao_cid': 'Diagnóstico não informado na fonte' if c == 'SEM_INFO' else f'CID-10 {str(c).strip()}',
+            'capitulo_cid': 'Não informado na fonte' if c == 'SEM_INFO' else cap,
+            'grau_severidade': 'Não classificado'
         })
     dim_diagnostico = pd.DataFrame(cid_rows)
     
     # DIMENSÃO SETOR E LEITO
-    dim_setor_leito = pd.DataFrame([
-        {
-            'id_leito': 'LEITO_UTI_01',
-            'tipo_acomodacao': 'UTI Adulto & Crítica',
-            'setor_hospitalar': 'Pavilhão Intensivo Central',
-            'leitos_operacionais': 30
-        },
-        {
-            'id_leito': 'LEITO_CIR_01',
-            'tipo_acomodacao': 'Enfermaria Cirúrgica & PO',
-            'setor_hospitalar': 'Bloco Cirúrgico Ala B',
-            'leitos_operacionais': 70
-        },
-        {
-            'id_leito': 'LEITO_ENF_01',
-            'tipo_acomodacao': 'Enfermaria Clínica Geral',
-            'setor_hospitalar': 'Ala de Internação Clínica',
-            'leitos_operacionais': 120
-        }
-    ])
+    dim_setor_leito = pd.DataFrame([{
+        'id_leito': 'LEITO_NAO_INFORMADO',
+        'tipo_acomodacao': 'Não informado na fonte',
+        'setor_hospitalar': 'Não informado na fonte',
+        'leitos_operacionais': None,
+    }])
     
     # TABELA FATO: fato_internacoes
     fato_internacoes = pd.DataFrame({
@@ -271,7 +323,7 @@ def build_star_schema(input_parquet: str, output_dir: str = "data/processed"):
         'id_data_alta': df['id_data_alta'],
         'dias_permanencia': df['dias_permanencia'],
         'dias_uti': df['dias_uti'],
-        'qtd_diarias': df['dias_permanencia'],
+        'qtd_diarias': nonnegative_integer(df['QT_DIARIAS']),
         'custo_hospitalar': df['custo_hospitalar'].round(2),
         'custo_servicos_profissionais': df['custo_servicos_profissionais'].round(2),
         'custo_opme': df['custo_opme'].round(2),

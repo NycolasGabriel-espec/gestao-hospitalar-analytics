@@ -14,13 +14,12 @@
     <div class="brand"><span class="mark" aria-hidden="true">+</span>hospital analytics</div>
     <div class="eyebrow">Acesso seguro</div>
     <h1 id="heading">Entre na sua conta</h1>
-    <p id="intro">Use seu e-mail e senha para acessar os dados analíticos protegidos.</p>
+    <p id="intro">Entre com uma conta habilitada pela equipe responsável.</p>
     <form id="auth-form">
-      <label for="email">E-mail</label><input id="email" name="email" type="email" autocomplete="email" required>
-      <label for="password">Senha</label><input id="password" name="password" type="password" autocomplete="current-password" minlength="8" required>
+      <label for="email">E-mail</label><input id="email" name="email" type="email" autocomplete="username" maxlength="254" required>
+      <label for="password">Senha</label><input id="password" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="1024" required>
       <button id="submit" type="submit">Entrar</button>
     </form>
-    <button class="switch" id="switch" type="button">Criar uma conta</button>
     <div class="message" id="message" role="status" aria-live="polite"></div>
     <a class="back" href="/">Voltar ao início</a>
   </main>
@@ -28,54 +27,43 @@
     const form = document.querySelector('#auth-form');
     const message = document.querySelector('#message');
     const submit = document.querySelector('#submit');
-    let signingUp = false;
     const authParams = new URLSearchParams(location.hash.slice(1));
     const confirmedAccessToken = authParams.get('access_token');
     if (confirmedAccessToken) {
-      localStorage.setItem('hospital-auth-session', JSON.stringify({
-        access_token: confirmedAccessToken,
-        refresh_token: authParams.get('refresh_token'),
-        expires_at: Number(authParams.get('expires_at')) || Math.floor(Date.now() / 1000) + Number(authParams.get('expires_in') || 3600),
-      }));
       history.replaceState(null, '', location.pathname);
-      location.assign('/powerbi/dashboard_preview.html');
+      if (!authParams.get('refresh_token')) {
+        message.textContent = 'Não foi possível concluir a confirmação. Entre com sua conta.';
+      } else {
+      fetch('/api/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          access_token: confirmedAccessToken,
+          refresh_token: authParams.get('refresh_token'),
+          expires_in: Number(authParams.get('expires_in')) || 3600,
+        }),
+      }).then(async (response) => {
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Esta conta não está habilitada para acessar os dados.');
+        location.assign('/powerbi/dashboard_preview.html');
+      }).catch((error) => { message.textContent = error.message; });
+      }
     }
-    document.querySelector('#switch').addEventListener('click', () => {
-      signingUp = !signingUp;
-      document.querySelector('#heading').textContent = signingUp ? 'Crie sua conta' : 'Entre na sua conta';
-      document.querySelector('#intro').textContent = signingUp ? 'Cadastre seu e-mail para começar a usar a plataforma.' : 'Use seu e-mail e senha para acessar os dados analíticos protegidos.';
-      submit.textContent = signingUp ? 'Criar conta' : 'Entrar';
-      document.querySelector('#switch').textContent = signingUp ? 'Já tenho uma conta' : 'Criar uma conta';
-      document.querySelector('#password').autocomplete = signingUp ? 'new-password' : 'current-password';
-      message.textContent = '';
-    });
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       submit.disabled = true;
       message.textContent = '';
       try {
-        const configResponse = await fetch('/api/config', { cache: 'no-store' });
-        const config = await configResponse.json();
-        if (!configResponse.ok) throw new Error(config.error || 'Não foi possível carregar a configuração.');
         const email = form.email.value.trim();
         const password = form.password.value;
-        const path = signingUp
-          ? `/auth/v1/signup?redirect_to=${encodeURIComponent(`${location.origin}/login.html`)}`
-          : '/auth/v1/token?grant_type=password';
-        const response = await fetch(`${config.url}${path}`, {
+        const response = await fetch('/api/auth/login', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', apikey: config.publishableKey },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password }),
         });
         const result = await response.json();
-        if (!response.ok) throw new Error(result.msg || result.message || result.error_description || 'Não foi possível autenticar.');
-        if (signingUp && !result.access_token) {
-          message.style.color = '#137c70';
-          message.textContent = 'Confira seu e-mail para confirmar a conta e depois entre.';
-        } else {
-          localStorage.setItem('hospital-auth-session', JSON.stringify({ access_token: result.access_token, refresh_token: result.refresh_token, expires_at: Math.floor(Date.now()/1000) + result.expires_in }));
-          location.assign('/powerbi/dashboard_preview.html');
-        }
+        if (!response.ok) throw new Error(result.error || 'Não foi possível autenticar.');
+        location.assign('/powerbi/dashboard_preview.html');
       } catch (error) {
         message.style.color = '#9a4b32';
         message.textContent = error.message;

@@ -7,10 +7,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Chart.js CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Demo-only browser CDN builds are pinned and checked with SRI. -->
+  <script src="https://cdn.tailwindcss.com/3.4.17" integrity="sha384-igm5BeiBt36UU4gqwWS7imYmelpTsZlQ45FZf+XBn9MuJbn4nQr7yx1yFydocC/K" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
     :root { --ink:#102d3a; --muted:#60737a; --paper:#f6f8f7; --line:#dce5e2; --teal:#137c70; --mint:#c9eee3; --lime:#d6f36a; --navy:#102d3a; }
@@ -66,7 +65,7 @@
       </div>
       <div class="flex items-center space-x-2">
         <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-          ● Modelo Star Schema Ativo
+          Demonstração sintética
         </span>
         <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30">
           DuckDB Engine
@@ -89,6 +88,10 @@
       </div>
     </div>
   </header>
+
+  <div role="note" style="background:#fff7df;border-bottom:1px solid #ead8a0;color:#5d4a16;padding:10px 18px;text-align:center;font-size:12px">
+    Dados fictícios de demonstração. Não representam pacientes nem devem orientar decisões clínicas ou financeiras.
+  </div>
 
   <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
@@ -276,7 +279,7 @@
   </main>
 
   <script>
-    // Carregamento dos dados reais exportados do DuckDB
+    // Dados estáticos sintéticos para demonstração visual.
     const hospitalData = {
       especialidades: [
         { especialidade: "Cardiologia", total: 3992, receita: 94.24, custo: 78.59, opme: 19.76, margem: 15.65, margem_pct: 16.6, tmp_real: 4.7, tmp_meta: 4.3 },

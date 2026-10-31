@@ -7,7 +7,6 @@ Autor: Nycolas Gabriel / Healthcare Analytics
 
 import os
 import random
-import hashlib
 from datetime import datetime, timedelta
 from pathlib import Path
 import numpy as np
@@ -22,7 +21,9 @@ def generate_benchmark_data(num_admissoes: int = 15000, output_dir: str = "data/
     np.random.seed(seed)
     random.seed(seed)
     out_path = Path(output_dir)
-    out_path.mkdir(parents=True, exist_ok=True)
+    out_path.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if os.name != "nt":
+        out_path.chmod(0o700)
     
     print(f"🏥 Gerando dataset de benchmark com {num_admissoes:,} internações hospitalares...")
     
@@ -138,7 +139,11 @@ def generate_benchmark_data(num_admissoes: int = 15000, output_dir: str = "data/
         sexo = random.choice(["M", "F"])
         pacientes_list.append({"id_paciente": p_id, "sexo": sexo, "idade": idade, "faixa_etaria": fx, "municipio_residencia": "Capital", "uf_residencia": "BR"})
     
-    dim_paciente = pd.DataFrame(pacientes_list)
+    # Preserve only the age band in the exported dimension.
+    dim_paciente = pd.DataFrame([
+        {"id_paciente": p["id_paciente"], "sexo": p["sexo"], "faixa_etaria": p["faixa_etaria"]}
+        for p in pacientes_list
+    ])
     
     # Gerando Fato Internações
     fato_rows = []

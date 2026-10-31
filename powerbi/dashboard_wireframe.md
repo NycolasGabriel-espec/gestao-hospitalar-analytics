@@ -1,5 +1,7 @@
 # 📊 Guia de Construção do Dashboard (Power BI / Looker)
 
+> Os números ilustrativos deste wireframe são fictícios. Não são resultados de um hospital. Para SIH/SUS, mostre custos, margem, capacidade por unidade e readmissão como indisponíveis até que fontes adequadas sejam integradas e validadas.
+
 Este documento especifica a arquitetura visual, filtros globais, layout e configurações de cada uma das 3 páginas do relatório executivo e operacional.
 
 ---

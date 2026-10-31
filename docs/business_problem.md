@@ -1,5 +1,7 @@
 # 🏥 Definição do Problema de Negócio (Healthcare Analytics)
 
+> Este documento descreve perguntas de negócio, não resultados medidos. O benchmark do projeto é sintético, e os limiares de ocupação são exemplos a validar localmente. O SIH/SUS não fornece custos contábeis, censo diário/capacidade histórica por leito nem uma chave de pessoa para calcular readmissão neste pipeline; essas métricas exigem fontes adicionais validadas.
+
 ## Contexto do Setor
 No ecossistema de saúde — tanto na saúde pública (SUS) quanto na saúde suplementar (hospitais privados e operadoras de planos de saúde) — as instituições enfrentam o que a literatura médica e de gestão chama de **"Tríplice Meta da Saúde" (Triple Aim)**:
 1. **Melhorar a experiência e a qualidade do cuidado** ao paciente;
@@ -44,5 +46,5 @@ Com o envelhecimento populacional, inflação médica (VCMH) historicamente acim
 | **Taxa de Ocupação de Leitos** | `(Total Dias-Paciente / Total Leitos-Dia Disponíveis) * 100` | Saturação vs. Ociosidade da infraestrutura hospitalar |
 | **Custo Médio Paciente-Dia** | `Custo Total Alocado / Dias de Permanência` | Intensidade de consumo diário de recursos |
 | **Margem de Contribuição** | `Receita Faturada - Custos Diretos (Serviços + OPME + Insumos)` | Lucratividade ou déficit por linha de cuidado |
-| **Taxa de Readmissão em 30 Dias** | `(Readmissões <= 30d / Total Altas) * 100` | Segurança assistencial e efetividade do tratamento |
-| **Índice de Mortalidade Hospitalar** | `(Total Óbitos / Total Internações) * 100` | Desfecho clínico grave ajustado por severidade |
+| **Taxa de Readmissão em 30 Dias** | `Readmissões conhecidas <= 30d / internações com indicador conhecido` | Indicador descritivo; exige chave de pessoa validada e cobertura conhecida |
+| **Índice de Mortalidade Hospitalar** | `Óbitos conhecidos / internações com indicador conhecido * 100` | Indicador descritivo, não ajustado por severidade |

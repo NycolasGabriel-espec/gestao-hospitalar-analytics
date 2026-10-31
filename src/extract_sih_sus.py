@@ -6,6 +6,7 @@ Autor: Nycolas Gabriel / Healthcare Analytics
 import os
 import sys
 import argparse
+from datetime import datetime
 from pathlib import Path
 import pandas as pd
 import pysus
@@ -24,9 +25,20 @@ def extract_sih_data(state: str = "AC", year: int = 2023, months: list[int] = No
     """
     if months is None:
         months = [1]
+
+    valid_states = {"AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"}
+    state = str(state).strip().upper()
+    if state not in valid_states:
+        raise ValueError("Informe uma UF brasileira válida com duas letras.")
+    if not isinstance(year, int) or year < 1992 or year > datetime.now().year:
+        raise ValueError("Informe um ano válido entre 1992 e o ano atual.")
+    if not months or any(not isinstance(month, int) or month < 1 or month > 12 for month in months):
+        raise ValueError("Informe ao menos um mês inteiro entre 1 e 12.")
         
     out_path = Path(output_dir)
-    out_path.mkdir(parents=True, exist_ok=True)
+    out_path.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if os.name != "nt":
+        out_path.chmod(0o700)
     
     print(f"🏥 Iniciando extração SIH/SUS para UF: {state} | Ano: {year} | Meses: {months}")
     
@@ -41,8 +53,8 @@ def extract_sih_data(state: str = "AC", year: int = 2023, months: list[int] = No
                 dfs.append(df_month)
             else:
                 print(f"⚠️ Aviso: Nenhum dado retornado para o mês {month:02d}.")
-        except Exception as e:
-            print(f"❌ Erro ao baixar competência {year}-{month:02d}: {e}")
+        except Exception:
+            print(f"❌ Não foi possível baixar a competência {year}-{month:02d}.")
             
     if not dfs:
         raise RuntimeError("Nenhum dado do SIH/SUS pôde ser obtido.")

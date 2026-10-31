@@ -5,9 +5,9 @@
 ![DuckDB](https://img.shields.io/badge/DuckDB-In--Process%20OLAP-FFF000?style=for-the-badge&logo=duckdb&logoColor=black)
 ![SQL](https://img.shields.io/badge/SQL-Star%20Schema-CC292B?style=for-the-badge&logo=postgresql&logoColor=white)
 ![PowerBI](https://img.shields.io/badge/Power_BI-DAX%20Analytics-F2C811?style=for-the-badge&logo=powerbi&logoColor=black)
-![DATASUS](https://img.shields.io/badge/Data-SIH%2FSUS%20Real-009B3A?style=for-the-badge)
+![DATASUS](https://img.shields.io/badge/Data-SIH%2FSUS%20%2B%20Benchmark-009B3A?style=for-the-badge)
 
-Projeto end-to-end de **Inteligência de Dados Hospitalares (Healthcare Analytics)** voltado para a **Diretoria Médico-Financeira**, Gestores de Linhas de Cuidado e Núcleos Internos de Regulação (NIR). O objetivo é equilibrar a **eficiência assistencial (qualidade do cuidado)** com a **sustentabilidade econômico-financeira (margem, controle de OPME e giro de leitos)**.
+Protótipo de analytics hospitalar para explorar eficiência assistencial e métricas operacionais e financeiras. O benchmark incluído é inteiramente sintético; qualquer uso de dados reais exige governança, autorização e validação pelo controlador.
 
 ---
 
@@ -44,7 +44,6 @@ A governança executiva precisa responder a quatro perguntas estratégicas:
        ▼                                       ▼
 [ DuckDB / Supabase Cloud ]            [ Power BI / Looker ]
  • 02_analytical_queries.sql            • Painel Executivo Médico-Financeiro
- • 03_views_bi.sql                      • Gestão de Ocupação & Giro de Leitos
  • sql/supabase_setup.sql               • Detalhamento de Risco e Readmissão
 ```
 
@@ -64,55 +63,53 @@ erDiagram
     FATO_INTERNACOES }|..|| DIM_TEMPO : "id_data_alta"
 
     FATO_INTERNACOES {
-        string id_atendimento PK "Número da AIH / Atendimento"
-        string id_paciente FK "Identificador do Paciente"
+        string id_atendimento PK "HMAC do identificador de origem"
+        string id_paciente FK "HMAC de AIH nesta fonte; não identifica pessoa persistente"
         string id_procedimento FK "Código do Procedimento (SIGTAP)"
         string cid_10 FK "Diagnóstico Primário"
         string id_leito FK "Setor e Tipo de Acomodação"
         int id_data_admissao FK "Data de Internação"
         int id_data_alta FK "Data de Saída/Alta"
-        int dias_permanencia "TMP (ALOS) em dias"
-        int dias_uti "Diárias em Leito Crítico"
-        float custo_hospitalar "Diárias e Hotelaria"
-        float custo_servicos_profissionais "Honorários Médicos"
-        float custo_opme "Órteses, Próteses e Mat. Especiais"
-        float custo_sadt "Exames e Diagnóstico"
-        float custo_total "Custo Direto Total (R$)"
-        float receita_faturada "Receita Faturada/Repassada (R$)"
-        float margem_contribuicao "Receita - Custo Total (R$)"
-        string status_desfecho "Alta / Óbito / Transferência"
-        int indicador_obito "1 = Óbito, 0 = Sobrevivente"
-        boolean readmissao_30d "Reinternação em até 30 dias"
+        int dias_permanencia "NULL quando ausente na fonte"
+        int dias_uti "NULL quando ausente na fonte"
+        float custo_hospitalar "NULL sem fonte contábil validada"
+        float custo_servicos_profissionais "NULL sem fonte contábil validada"
+        float custo_opme "NULL sem fonte contábil validada"
+        float custo_sadt "NULL sem fonte contábil validada"
+        float custo_total "NULL sem fonte contábil validada"
+        float receita_faturada "Valor registrado da AIH; não comprova recebimento"
+        float margem_contribuicao "NULL sem custos e receitas contábeis validados"
+        string status_desfecho "NULL quando ausente ou não classificável"
+        int indicador_obito "NULL quando não informado ou inválido"
+        boolean readmissao_30d "NULL para SIH/SUS neste pipeline"
     }
 
     DIM_PACIENTE {
-        string id_paciente PK
+        string id_paciente PK "HMAC de AIH; não representa uma pessoa"
         string sexo "M / F"
-        int idade "Idade em anos"
         string faixa_etaria "0-17, 18-39, 40-59, 60-79, 80+"
-        string municipio_residencia "Município IBGE"
     }
 
     DIM_PROCEDIMENTO {
         string id_procedimento PK "Código SIGTAP"
         string descricao_procedimento "Nome do Procedimento"
-        string especialidade "Ortopedia, Cardiologia, Geral, etc."
-        string complexidade "Média ou Alta Complexidade"
-        float tmp_protocolo_previsto "Meta de TMP Clínico (dias)"
+        string especialidade "Classificação heurística a validar"
+        string complexidade "Classificação heurística a validar"
+        float tmp_protocolo_previsto "NULL sem protocolo clínico aprovado"
     }
 
     DIM_DIAGNOSTICO {
         string cid_10 PK "Código CID-10"
-        string descricao_cid "Patologia / Diagnóstico"
-        string capitulo_cid "Grande Grupo Clínico"
-        string grau_severidade "Leve, Moderado, Alto, Crítico"
+        string descricao_cid "Código CID-10; descrição externa não incluída"
+        string capitulo_cid "Agrupamento amplo aproximado"
+        string grau_severidade "Não classificado sem fonte validada"
     }
 
     DIM_SETOR_LEITO {
         string id_leito PK "Identificador da Unidade"
-        string tipo_acomodacao "UTI, Enfermaria Cirúrgica, etc."
-        string setor_hospitalar "Bloco Hospitalar"
-        int leitos_operacionais "Capacidade Instalada"
+        string tipo_acomodacao "Não informado quando a fonte não identifica leito"
+        string setor_hospitalar "Não informado quando a fonte não identifica setor"
+        int leitos_operacionais "NULL quando a capacidade é desconhecida"
     }
 
     DIM_TEMPO {
@@ -128,43 +125,31 @@ erDiagram
 
 ---
 
-## 📈 4. Principais Insights & Storytelling dos Dados
+## 📈 4. Escopo e limites dos dados
 
-A aplicação das consultas analíticas em SQL (`sql/02_analytical_queries.sql`) sobre a base hospitalar revelou diagnósticos executivos cruciais:
+O dataset gerado por `src/generate_benchmark_dataset.py` é simulado e serve apenas para demonstração técnica. Valores de receita, custos, mortalidade, ocupação e readmissão não descrevem um hospital real e não devem embasar decisões clínicas ou financeiras. As consultas em `sql/02_analytical_queries.sql` são modelos para aplicar a bases autorizadas e validadas.
 
-### 🔍 Descoberta 1: O Paradoxo da Ortopedia (Volume Alto vs. Margem Crítica)
-* **Achado:** A especialidade de **Ortopedia & Traumatologia** foi a segunda maior em faturamento (R$ 72,1 milhões; 27,7% da receita hospitalar total), porém obteve a **menor margem de contribuição (apenas 2,63%)**.
-* **Causa Raiz:** O custo de **OPME (Órteses, Próteses e Materiais Especiais)** representou expressivos **46,41% de todos os custos da especialidade** (R$ 32,6 milhões em próteses de quadril e joelho), com disparidade de preços de até 120% entre fornecedores para o mesmo procedimento.
-* **Ação Recomendada:** Instituir imediatamente comitê de padronização de OPME, consolidação de tabela unificada de fornecedores e auditoria concorrente pré-cirúrgica.
-
-### ⏱️ Descoberta 2: Diárias Excedentes e Ineficiência de Permanência (TMP)
-* **Achado:** Pacientes cirúrgicos ortopédicos apresentaram TMP real de **5,2 dias vs. 4,5 dias previstos em diretriz clínica** (+0,7 dias de desvio médio).
-* **Impacto Financeiro:** O custo de diárias excedentes além do protocolo gerou um desperdício acumulado estimado em **R$ 12,2 milhões** no ano.
-* **Ação Recomendada:** Implementação de protocolo de alta segura precoce (Fast-Track Surgical Recovery) e fisioterapia motora precoce nas primeiras 12h pós-operatórias para reduzir em 0,7 dias a permanência, liberando aproximadamente 24 leitos/mês de capacidade instalada.
-
-### 💡 Descoberta 3: Cirurgia Geral como Alavanca de Margem
-* **Achado:** A **Cirurgia Geral e Digestiva** registrou a maior margem de contribuição do hospital (**25,90%**), com procedimentos videolaparoscópicos rápidos (TMP de 1,5 dias), giro acelerado de leito e baixíssimo consumo de materiais especiais (OPME representou apenas 5,03% dos custos).
-* **Ação Recomendada:** Priorizar o agendamento de cirurgias do aparelho digestivo em bloco cirúrgico e criar linha de cuidado dedicada de *Day Hospital* (cirurgias ambulatoriais de 24h).
+No fluxo SIH/SUS, a chave AIH é pseudonimizada com HMAC e não representa uma pessoa persistente. Por isso, a readmissão em 30 dias fica desconhecida (`NULL`) para dados reais. Os arquivos transformados mantêm dados clínicos por internação e continuam sendo dados sensíveis; pseudonimização não equivale a anonimização.
 
 ---
 
 ## 📊 5. Estrutura das Telas do Dashboard (Power BI / Looker)
 
-O projeto contém o guia visual e o catálogo de fórmulas DAX em [`powerbi/`](file:///Users/nycolas/gestao-hospitalar-analytics/powerbi/):
+O projeto contém um preview estático sintético, wireframes e fórmulas DAX em [`powerbi/`](powerbi/). O preview é público e não está conectado às rotas autenticadas; ele não contém dados reais.
 
 1. **Tela 1: Visão Executiva Médico-Financeira**
-   * KPIs: Total de Internações, TMP Médio Geral, Margem Total (R$ e %), Taxa de Readmissão 30d.
+   * KPIs: Total de Internações e TMP Médio. Margem e valores financeiros só aparecem com uma fonte contábil validada; readmissão exige uma fonte com identificador de pessoa apropriado.
    * Gráfico de Dispersão (Matriz de Eficiência): *Tempo de Permanência (X)* vs. *Margem % (Y)* vs. *Custo Total (Tamanho da Bolha)*.
    * Curva ABC (Pareto) de Procedimentos e Especialidades.
 
 2. **Tela 2: Gestão Operacional de Leitos & Eficiência**
-   * Mapa de Calor (Heatmap) da Taxa de Ocupação mensal por setor (alerta de saturação em UTI > 85% e ociosidade em enfermarias < 65%).
+   * Mapa de Calor da ocupação somente após integrar capacidade instalada por setor; o SIH/SUS deste pipeline não fornece esse dado.
    * Gráfico de colunas com desvio de permanência (TMP Real vs. Meta de Protocolo).
    * Indicador de Giro de Leito (Pacientes atendidos por leito-dia).
 
 3. **Tela 3: Detalhamento de Risco, Readmissão & Qualidade Clínica**
-   * Gráfico com Top 10 Patologias (CID-10) com maior incidência de reinternações em 30 dias.
-   * Tabela analítica com cruzamento de severidade clínica, desfecho (alta vs. óbito) e custos associados.
+   * Gráfico com indicadores por coorte; a readmissão fica indisponível para o fluxo SIH/SUS atual.
+   * Coortes agregadas para indicadores disponíveis; severidade clínica não é inferida do CID, e custos ficam vazios sem fonte contábil validada.
 
 ---
 
@@ -176,9 +161,9 @@ gestao-hospitalar-analytics/
 │   ├── raw/                  # Arquivos brutos baixados (Parquet SIH/SUS DATASUS)
 │   └── processed/            # Tabelas dimensionais, Fato e banco DuckDB
 ├── sql/
-│   ├── 01_ddl_star_schema.sql         # Script DDL ANSI SQL com tabelas e índices
+│   ├── 01_ddl_star_schema.sql         # Nota de compatibilidade; setup protegido é centralizado
 │   ├── 02_analytical_queries.sql      # Queries analíticas (Margem, TMP, Leitos, Readmissão, ABC)
-│   └── 03_views_bi.sql                # Views analíticas para integração com BI
+│   └── 03_views_bi.sql                # Nota de compatibilidade; views ficam no setup protegido
 ├── src/
 │   ├── extract_sih_sus.py             # Extração automatizada de AIH do DATASUS via PySUS
 │   ├── transform_star_schema.py       # Pipeline ETL de saneamento e modelagem dimensional
@@ -188,7 +173,8 @@ gestao-hospitalar-analytics/
 │   └── dashboard_wireframe.md         # Wireframe detalhado das telas, layout e cores
 ├── docs/
 │   ├── business_problem.md            # Problema de negócio, dores e Tríplice Meta da Saúde
-│   └── data_dictionary.md             # Dicionário de dados dos campos do DATASUS e Star Schema
+│   ├── data_dictionary.md             # Dicionário de dados do DATASUS e Star Schema
+│   └── security.md                    # Controles e requisitos de implantação segura
 ├── requirements.txt                   # Dependências do projeto (pysus, duckdb, pandas, pyarrow)
 └── README.md                          # Apresentação executiva e técnica do projeto
 ```
@@ -199,31 +185,33 @@ gestao-hospitalar-analytics/
 
 ### API REST na Vercel
 
-O diretório `api/` contém funções serverless somente de leitura para os dados analíticos. Importe o repositório na Vercel e configure `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY` nas variáveis de ambiente do projeto. A API também aceita `SUPABASE_KEY` como compatibilidade com a chave pública antiga. Não configure a chave `secret`/`service_role` para estas rotas. A página `/login.html` permite criar conta e entrar com e-mail e senha do Supabase Auth. Os endpoints de dados exigem `Authorization: Bearer <access_token>`; `/api/health` permanece público.
+O diretório `api/` contém funções serverless somente de leitura. Na Vercel, configure `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY` (ou uma chave `anon` legada). Nunca configure a chave `secret`/`service_role` nessas rotas. O login usa cookies `HttpOnly`, `Secure` em produção e `SameSite=Strict`; a página não cria contas. Desative o cadastro público no Supabase e habilite acesso somente em `app_metadata.hospital_analytics_access = true`, definido por um administrador. Não use `user_metadata` para autorização. `/api/health` permanece público.
 
 | Rota | Uso | Filtros opcionais |
 | --- | --- | --- |
 | `GET /api/health` | Verifica se a função está ativa | — |
 | `GET /api/executive` | KPIs mensais por especialidade | `ano_mes`, `especialidade`, `limit` |
-| `GET /api/beds` | Ocupação e giro por setor | `ano_mes`, `id_leito`, `limit` |
-| `GET /api/risk` | Detalhes clínicos sem identificadores de paciente/atendimento | `cid_10`, `especialidade`, `grau_severidade`, `limit` |
+| `GET /api/beds` | Admissões e capacidade informada por setor; ocupação retorna `null` sem censo diário | `ano_mes`, `id_leito`, `limit` |
+| `GET /api/risk` | Indicadores clínicos agregados por coorte; grupos com menos de 10 internações são ocultados | `cid_10`, `especialidade`, `grau_severidade`, `limit` |
 | `GET /api/filters?dimension=...` | Dimensões para filtros do dashboard | `dimension`: `procedures`, `diagnoses`, `beds` ou `months`; `limit` |
 
 Exemplos:
 
 ```bash
 curl 'https://SEU-PROJETO.vercel.app/api/health'
-curl 'https://SEU-PROJETO.vercel.app/api/executive?ano_mes=2023-01&limit=50' \\
-  -H 'Authorization: Bearer SEU_ACCESS_TOKEN'
-curl 'https://SEU-PROJETO.vercel.app/api/beds?ano_mes=2023-01' -H 'Authorization: Bearer SEU_ACCESS_TOKEN'
-curl 'https://SEU-PROJETO.vercel.app/api/risk?grau_severidade=Crítico&limit=25' -H 'Authorization: Bearer SEU_ACCESS_TOKEN'
-curl 'https://SEU-PROJETO.vercel.app/api/filters?dimension=procedures' -H 'Authorization: Bearer SEU_ACCESS_TOKEN'
+curl -c cookies.txt -X POST 'https://SEU-PROJETO.vercel.app/api/auth/login' \
+  -H 'Origin: https://SEU-PROJETO.vercel.app' -H 'Content-Type: application/json' \
+  --data '{"email":"usuario@hospital.org","password":"SENHA"}'
+curl -b cookies.txt 'https://SEU-PROJETO.vercel.app/api/executive?ano_mes=2023-01&limit=50'
+curl -b cookies.txt 'https://SEU-PROJETO.vercel.app/api/beds?ano_mes=2023-01'
+curl -b cookies.txt 'https://SEU-PROJETO.vercel.app/api/risk?grau_severidade=Não%20classificado&limit=25'
+curl -b cookies.txt 'https://SEU-PROJETO.vercel.app/api/filters?dimension=procedures'
 ```
 
-As rotas de dados retornam JSON no formato `{ "data": [...], "count": 1, "limit": 100 }`. O limite por chamada é 1.000 linhas. Execute `sql/supabase_setup.sql` no Supabase para criar tabelas e views e restringir leitura à role `authenticated`. Em **Authentication → Providers → Email**, habilite e configure o provedor de e-mail; ajuste as URLs permitidas para incluir o domínio publicado e `http://localhost:3000/**` no desenvolvimento. A chave publishable fica acessível no navegador por desenho; nunca exponha a chave `service_role`/secret.
+As rotas retornam `{ "data": [...], "count": 1, "limit": 100 }`, com limite de 1.000 linhas e `Cache-Control: no-store`. Execute `sql/supabase_setup.sql` no Supabase para habilitar RLS, retirar acesso direto às tabelas e conceder somente views aprovadas. Cadastre usuários pelo fluxo administrativo do Supabase e defina `app_metadata.hospital_analytics_access` como booleano `true`. Desative signups públicos e limite as URLs de redirecionamento ao domínio publicado e aos endereços locais usados no desenvolvimento. O login deste protótipo não inclui desafio de segundo fator; habilitar MFA no painel não basta para impor AAL2, então não o considere protegido por MFA sem um fluxo de step-up e regra AAL2 nas views/API. A chave publishable pode ser pública; a chave `service_role`/secret nunca deve ir para o navegador nem para a Vercel dessas rotas.
 
 ### Pré-requisitos
-* Python 3.10+ instalado
+* Python 3.11–3.14 instalado (a faixa compatível com a versão atual do PySUS)
 * Pip atualizado
 
 ### Passo a Passo
@@ -240,12 +228,15 @@ pip install -r requirements.txt
 
 3. **Opção A: Extrair dados reais do DATASUS (SIH/SUS):**
 ```bash
+# Gere uma chave secreta com `python3 -c 'import secrets; print(secrets.token_hex(32))'`
+# e salve em PATIENT_DATA_HMAC_KEY no .env antes de transformar os dados.
 # Baixa as internações do Acre (AC) de janeiro de 2023
 python3 src/extract_sih_sus.py --state AC --year 2023 --month 1
 
 # Processa e gera o Star Schema
 python3 src/transform_star_schema.py
 ```
+O ETL não grava o número de AIH nem idade exata/município nos arquivos processados. Como o SIH/SUS não fornece uma chave persistente de pessoa neste fluxo, `readmissao_30d` fica desconhecida (`NULL`) para os dados reais; o benchmark usa readmissões simuladas.
 
 4. **Opção B: Gerar dataset de benchmark clínico-financeiro (15.000 internações completas):**
 ```bash
@@ -261,7 +252,7 @@ print(con.execute('SELECT especialidade, COUNT(*), ROUND(AVG(dias_permanencia), 
 ```
 
 6. **Carregar o Star Schema no Supabase (Nuvem):**
-* Execute o script [`sql/supabase_setup.sql`](file:///Users/nycolas/gestao-hospitalar-analytics/sql/supabase_setup.sql) no **SQL Editor** do Supabase.
+* Execute o script [sql/supabase_setup.sql](sql/supabase_setup.sql) no **SQL Editor** do Supabase. Ele não apaga as tabelas; remove idade exata e município da dimensão e recria a view clínica em forma agregada. Faça backup antes da atualização. O setup não re-HMACa identificadores antigos; após a migração, substitua as linhas antigas a partir de arquivos processados com a chave HMAC antes de habilitar usuários.
 * Copie o arquivo de variáveis de ambiente: `cp .env.example .env` e adicione suas credenciais do projeto Supabase.
 * Execute a carga automatizada:
 ```bash
@@ -271,12 +262,14 @@ python3 src/load_to_supabase.py --method api
 # Ou carga direta PostgreSQL (via SQLAlchemy / psycopg2)
 python3 src/load_to_supabase.py --method direct
 ```
-* Consulte o guia completo em [`docs/supabase_integration.md`](file:///Users/nycolas/gestao-hospitalar-analytics/docs/supabase_integration.md).
+Para substituir dados anteriores, faça backup e use explicitamente `--method direct --truncate --confirm-truncate` com a role local apropriada.
+* Consulte o guia completo em [`docs/supabase_integration.md`](docs/supabase_integration.md).
 
 7. **Importar no Power BI:**
 * Abra o Power BI Desktop.
-* Conecte-se aos arquivos locais em [`data/processed/`](file:///Users/nycolas/gestao-hospitalar-analytics/data/processed/) ou diretamente ao **Supabase (PostgreSQL)** nas views `vw_painel_executivo_mensal`, `vw_eficiencia_leitos_setor` e `vw_detalhe_clinico_risco`.
-* Cole as medidas DAX do arquivo [`powerbi/dax_measures.dax`](file:///Users/nycolas/gestao-hospitalar-analytics/powerbi/dax_measures.dax).
+* Gere o dataset antes de importar os arquivos de [`data/processed/`](data/processed/). Esses arquivos são ignorados pelo Git porque o pipeline real pode gerar dados de saúde.
+* Para o Supabase, use um login PostgreSQL dedicado `powerbi_reader` com acesso somente às views agregadas; nunca use o usuário mestre `postgres`. Veja as instruções em [docs/supabase_integration.md](docs/supabase_integration.md).
+* Cole as medidas DAX do arquivo [`powerbi/dax_measures.dax`](powerbi/dax_measures.dax).
 
 ---
 

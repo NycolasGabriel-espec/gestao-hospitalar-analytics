@@ -11,9 +11,8 @@ export default async function handler(req, res) {
     if (req.query[key]) filters[key] = String(req.query[key]).slice(0, 80);
   }
   try {
-    // Não retorna identificadores de paciente nem de atendimento nesta API.
     const data = await queryView('vw_detalhe_clinico_risco', {
-      select: 'sexo,idade,faixa_etaria,cid_10,descricao_cid,capitulo_cid,grau_severidade,especialidade,descricao_procedimento,tmp_protocolo_previsto,dias_permanencia,desvio_permanencia_dias,dias_uti,custo_total,custo_opme,receita_faturada,margem_contribuicao,status_desfecho,indicador_obito,readmissao_30d',
+      select: 'ano_mes,cid_10,descricao_cid,grau_severidade,especialidade,descricao_procedimento,faixa_etaria,volume_internacoes,tmp_medio,custo_medio,taxa_mortalidade_pct,taxa_readmissao_pct',
       filters, limit, accessToken: auth.accessToken,
     });
     sendJson(res, 200, { data, count: data.length, limit });

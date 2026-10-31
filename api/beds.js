@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   }
   try {
     const data = await queryView('vw_eficiencia_leitos_setor', {
-      select: 'ano_mes,id_leito,tipo_acomodacao,setor_hospitalar,leitos_operacionais,total_admissoes,dias_paciente_ocupados,dias_uti_ocupados,leitos_dia_base_30d,taxa_ocupacao_pct,giro_leito',
+      select: 'ano_mes,id_leito,tipo_acomodacao,setor_hospitalar,leitos_operacionais,total_admissoes,dias_permanencia_coorte,dias_uti_reportados_coorte,leitos_dia_teoricos,taxa_ocupacao_pct,admissoes_por_leito_aproximado',
       filters, limit, accessToken: auth.accessToken,
     });
     sendJson(res, 200, { data, count: data.length, limit });

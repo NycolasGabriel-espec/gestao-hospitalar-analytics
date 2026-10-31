@@ -1,10 +1,10 @@
 import { handleError, parseLimit, queryView, requireAuth, requireGet, sendJson } from '../lib/api/supabase.js';
 
 const DIMENSIONS = {
-  procedures: ['dim_procedimento', 'id_procedimento,descricao_procedimento,especialidade,complexidade,tmp_protocolo_previsto'],
-  diagnoses: ['dim_diagnostico', 'cid_10,descricao_cid,capitulo_cid,grau_severidade'],
-  beds: ['dim_setor_leito', 'id_leito,tipo_acomodacao,setor_hospitalar,leitos_operacionais'],
-  months: ['dim_tempo', 'ano_mes,ano,mes,nome_mes'],
+  procedures: ['vw_dim_procedimento', 'id_procedimento,descricao_procedimento,especialidade,complexidade,tmp_protocolo_previsto'],
+  diagnoses: ['vw_dim_diagnostico', 'cid_10,descricao_cid,capitulo_cid,grau_severidade'],
+  beds: ['vw_dim_setor_leito', 'id_leito,tipo_acomodacao,setor_hospitalar,leitos_operacionais'],
+  months: ['vw_dim_tempo', 'ano_mes,ano,mes,nome_mes'],
 };
 
 export default async function handler(req, res) {

@@ -12,14 +12,20 @@ Total Internacoes =
 COUNTROWS(fato_internacoes)
 
 Total Dias-Paciente = 
-SUM(fato_internacoes[dias_permanencia])
+VAR _linhas = COUNTROWS(fato_internacoes)
+VAR _dias_conhecidos = COUNT(fato_internacoes[dias_permanencia])
+RETURN IF(_linhas = 0 || _dias_conhecidos < _linhas, BLANK(), SUM(fato_internacoes[dias_permanencia]))
 
 Total Dias UTI = 
-SUM(fato_internacoes[dias_uti])
+VAR _linhas = COUNTROWS(fato_internacoes)
+VAR _dias_conhecidos = COUNT(fato_internacoes[dias_uti])
+RETURN IF(_linhas = 0 || _dias_conhecidos < _linhas, BLANK(), SUM(fato_internacoes[dias_uti]))
 
 TMP Medio (Dias) = 
 // ALOS - Average Length of Stay
-AVERAGE(fato_internacoes[dias_permanencia])
+VAR _linhas = COUNTROWS(fato_internacoes)
+VAR _dias_conhecidos = COUNT(fato_internacoes[dias_permanencia])
+RETURN IF(_linhas = 0 || _dias_conhecidos < _linhas, BLANK(), AVERAGE(fato_internacoes[dias_permanencia]))
 
 TMP Esperado Protocolo = 
 AVERAGE(dim_procedimento[tmp_protocolo_previsto])
@@ -31,63 +37,92 @@ Desvio TMP vs Protocolo =
 // 2. MEDIDAS FINANCEIRAS E DE CUSTO
 // ------------------------------------------------------------------------------
 
-Receita Total Faturada = 
-SUM(fato_internacoes[receita_faturada])
+// Em dados SIH/SUS, esse campo contém VAL_TOT (valor registrado da AIH),
+// não recebimento ou receita contábil. Valide a semântica da fonte antes de usar.
+Valor Receita / AIH (conforme origem) =
+VAR _linhas = COUNTROWS(fato_internacoes)
+VAR _valores_conhecidos = COUNT(fato_internacoes[receita_faturada])
+RETURN IF(_linhas = 0 || _valores_conhecidos < _linhas, BLANK(), SUM(fato_internacoes[receita_faturada]))
 
 Custo Total Hospitalar = 
-SUM(fato_internacoes[custo_total])
+VAR _linhas = COUNTROWS(fato_internacoes)
+VAR _valores_conhecidos = COUNT(fato_internacoes[custo_total])
+RETURN IF(_linhas = 0 || _valores_conhecidos < _linhas, BLANK(), SUM(fato_internacoes[custo_total]))
 
 Custo Total OPME = 
-SUM(fato_internacoes[custo_opme])
+VAR _linhas = COUNTROWS(fato_internacoes)
+VAR _valores_conhecidos = COUNT(fato_internacoes[custo_opme])
+RETURN IF(_linhas = 0 || _valores_conhecidos < _linhas, BLANK(), SUM(fato_internacoes[custo_opme]))
 
 Custo Servicos Hospitalares = 
-SUM(fato_internacoes[custo_hospitalar])
+VAR _linhas = COUNTROWS(fato_internacoes)
+VAR _valores_conhecidos = COUNT(fato_internacoes[custo_hospitalar])
+RETURN IF(_linhas = 0 || _valores_conhecidos < _linhas, BLANK(), SUM(fato_internacoes[custo_hospitalar]))
 
 Custo Servicos Profissionais = 
-SUM(fato_internacoes[custo_servicos_profissionais])
+VAR _linhas = COUNTROWS(fato_internacoes)
+VAR _valores_conhecidos = COUNT(fato_internacoes[custo_servicos_profissionais])
+RETURN IF(_linhas = 0 || _valores_conhecidos < _linhas, BLANK(), SUM(fato_internacoes[custo_servicos_profissionais]))
 
 Margem de Contribuicao Total = 
-[Receita Total Faturada] - [Custo Total Hospitalar]
+VAR _linhas = COUNTROWS(fato_internacoes)
+VAR _custos_conhecidos = COUNT(fato_internacoes[custo_total])
+VAR _valores_conhecidos = COUNT(fato_internacoes[receita_faturada])
+RETURN
+IF(
+    _linhas = 0 || _custos_conhecidos < _linhas || _valores_conhecidos < _linhas,
+    BLANK(),
+    [Valor Receita / AIH (conforme origem)] - [Custo Total Hospitalar]
+)
 
 Margem de Contribuicao % = 
 DIVIDE(
     [Margem de Contribuicao Total],
-    [Receita Total Faturada],
-    0
+    [Valor Receita / AIH (conforme origem)],
+    BLANK()
 )
 
 Custo Medio por Paciente = 
 DIVIDE(
     [Custo Total Hospitalar],
     [Total Internacoes],
-    0
+    BLANK()
 )
 
 Custo Medio por Paciente-Dia = 
 DIVIDE(
     [Custo Total Hospitalar],
     [Total Dias-Paciente],
-    0
+    BLANK()
 )
 
 Peso OPME no Custo Total % = 
 DIVIDE(
     [Custo Total OPME],
     [Custo Total Hospitalar],
-    0
+    BLANK()
 )
 
-Custo Diarias Excedentes Estimado = 
+Custo Diarias Excedentes Estimado =
 // Custo das diárias de pacientes que ultrapassaram o tempo médio de protocolo
-SUMX(
-    fato_internacoes,
-    VAR _dias_excedentes = fato_internacoes[dias_permanencia] - RELATED(dim_procedimento[tmp_protocolo_previsto])
-    VAR _custo_dia = DIVIDE(fato_internacoes[custo_total], fato_internacoes[dias_permanencia], 0)
-    RETURN
-    IF(
-        _dias_excedentes > 0,
-        _dias_excedentes * _custo_dia,
-        0
+VAR _linhas = COUNTROWS(fato_internacoes)
+VAR _linhas_completas = COUNTROWS(
+    FILTER(
+        fato_internacoes,
+        NOT ISBLANK(fato_internacoes[dias_permanencia])
+            && NOT ISBLANK(fato_internacoes[custo_total])
+            && NOT ISBLANK(RELATED(dim_procedimento[tmp_protocolo_previsto]))
+    )
+)
+RETURN
+IF(
+    _linhas = 0 || _linhas_completas < _linhas,
+    BLANK(),
+    SUMX(
+        fato_internacoes,
+        VAR _dias_excedentes = fato_internacoes[dias_permanencia] - RELATED(dim_procedimento[tmp_protocolo_previsto])
+        VAR _custo_dia = DIVIDE(fato_internacoes[custo_total], fato_internacoes[dias_permanencia], BLANK())
+        RETURN IF(_dias_excedentes > 0, _dias_excedentes * _custo_dia)
     )
 )
 
@@ -96,7 +131,9 @@ SUMX(
 // ------------------------------------------------------------------------------
 
 Total Leitos Instalados = 
-SUM(dim_setor_leito[leitos_operacionais])
+VAR _setores = COUNTROWS(dim_setor_leito)
+VAR _setores_com_capacidade = COUNT(dim_setor_leito[leitos_operacionais])
+RETURN IF(_setores = 0 || _setores_com_capacidade < _setores, BLANK(), SUM(dim_setor_leito[leitos_operacionais]))
 
 Dias no Periodo Selecionado = 
 COUNTROWS(dim_tempo)
@@ -105,18 +142,17 @@ Total Leitos-Dia Disponiveis =
 [Total Leitos Instalados] * [Dias no Periodo Selecionado]
 
 Taxa de Ocupacao Leitos % = 
-DIVIDE(
-    [Total Dias-Paciente],
-    [Total Leitos-Dia Disponiveis],
-    0
-)
+// Dias por coorte de admissão não são censo diário e não medem ocupação.
+// Conecte uma fato de censo diário e capacidade válida por data antes de calcular.
+BLANK()
 
 Giro de Leito = 
-// Quantidade de pacientes atendidos por leito instalado no período
+// Proxy de admissões por leito; não equivale ao giro oficial sem capacidade
+// válida no período e contagem consistente de admissões/saídas.
 DIVIDE(
     [Total Internacoes],
     [Total Leitos Instalados],
-    0
+    BLANK()
 )
 
 // ------------------------------------------------------------------------------
@@ -124,29 +160,49 @@ DIVIDE(
 // ------------------------------------------------------------------------------
 
 Total Readmissoes 30d = 
+IF(
+    [Internacoes com Indicador de Readmissao] = 0,
+    BLANK(),
+    CALCULATE(
+        COUNTROWS(fato_internacoes),
+        fato_internacoes[readmissao_30d] = TRUE()
+    )
+)
+
+Internacoes com Indicador de Readmissao =
 CALCULATE(
     COUNTROWS(fato_internacoes),
-    fato_internacoes[readmissao_30d] = TRUE()
+    NOT ISBLANK(fato_internacoes[readmissao_30d])
 )
 
 Taxa de Readmissao 30d % = 
 DIVIDE(
     [Total Readmissoes 30d],
-    [Total Internacoes],
-    0
+    [Internacoes com Indicador de Readmissao],
+    BLANK()
 )
 
-Total Obitos = 
+Internacoes com Indicador de Obito =
 CALCULATE(
     COUNTROWS(fato_internacoes),
-    fato_internacoes[indicador_obito] = 1
+    NOT ISBLANK(fato_internacoes[indicador_obito])
+)
+
+Total Obitos =
+IF(
+    [Internacoes com Indicador de Obito] = 0,
+    BLANK(),
+    CALCULATE(
+        COUNTROWS(fato_internacoes),
+        fato_internacoes[indicador_obito] = 1
+    )
 )
 
 Taxa de Mortalidade % = 
 DIVIDE(
     [Total Obitos],
-    [Total Internacoes],
-    0
+    [Internacoes com Indicador de Obito],
+    BLANK()
 )
 
 // ------------------------------------------------------------------------------
@@ -154,16 +210,20 @@ DIVIDE(
 // ------------------------------------------------------------------------------
 
 Cor Taxa Ocupacao = 
-SWITCH(
-    TRUE(),
-    [Taxa de Ocupacao Leitos %] > 0.85, "#E63946", // Vermelho - Saturação
-    [Taxa de Ocupacao Leitos %] < 0.65, "#F4A261", // Laranja - Ociosidade
-    "#2A9D8F"                                     // Verde - Faixa Ideal
+IF(
+    ISBLANK([Taxa de Ocupacao Leitos %]),
+    "#94A3B8",
+    SWITCH(
+        TRUE(),
+        [Taxa de Ocupacao Leitos %] > 0.85, "#E63946",
+        [Taxa de Ocupacao Leitos %] < 0.65, "#F4A261",
+        "#2A9D8F"
+    )
 )
 
 Cor Margem Contribuicao = 
 IF(
-    [Margem de Contribuicao %] < 0,
-    "#E63946", // Vermelho - Prejuízo
-    "#2A9D8F"  // Verde - Positivo
+    ISBLANK([Margem de Contribuicao %]),
+    "#94A3B8",
+    IF([Margem de Contribuicao %] < 0, "#E63946", "#2A9D8F")
 )

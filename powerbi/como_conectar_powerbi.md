@@ -30,6 +30,8 @@ Arquivos disponíveis:
 
 *(Obs: Os arquivos CSV utilizam **delimitador ponto e vírgula `;`** e codificação **UTF-8**).*
 
+**Privacidade:** os arquivos locais de `data/processed/` podem conter uma linha por internação, com diagnóstico, datas, custos e desfecho. Use-os apenas em ambiente local controlado e com o dataset sintético. Não publique esses arquivos nem os envie ao Power BI Service quando forem derivados de dados reais. Para dados reais, use as views agregadas do Supabase descritas abaixo.
+
 ---
 
 ## ⚙️ Passo 2: Importando no Power BI Desktop
@@ -52,7 +54,7 @@ Arquivos disponíveis:
 ### Método B: Usando o Script Power Query (M) Automatizado
 1. No menu superior, clique em **Transformar Dados (Transform Data)**.
 2. No painel esquerdo, clique com o botão direito > **Nova Consulta** > **Consulta Nula**.
-3. Clique em **Editor Avançado** e copie o código correspondente do arquivo [`powerbi/power_query_setup.m`](file:///Users/nycolas/gestao-hospitalar-analytics/powerbi/power_query_setup.m).
+3. Clique em **Editor Avançado** e copie o código correspondente do arquivo [`powerbi/power_query_setup.m`](power_query_setup.m).
 
 ---
 
@@ -78,7 +80,7 @@ Conecte as tabelas arrastando os campos correspondentes:
 1. Na visão de **Relatório (Report View)**, clique em **Inserir Dados (Enter Data)** na aba *Página Inicial*.
 2. Dê o nome de `_Medidas` à tabela e clique em **Carregar**.
 3. Clique com o botão direito na tabela `_Medidas` e selecione **Nova Medida**.
-4. Copie as fórmulas prontas do arquivo [`powerbi/dax_measures.dax`](file:///Users/nycolas/gestao-hospitalar-analytics/powerbi/dax_measures.dax).
+4. Copie as fórmulas prontas do arquivo [`powerbi/dax_measures.dax`](dax_measures.dax).
    * Exemplo:
      ```dax
      Total Internacoes = COUNTROWS(fato_internacoes)
@@ -87,11 +89,30 @@ Conecte as tabelas arrastando os campos correspondentes:
      TMP Medio (Dias) = AVERAGE(fato_internacoes[dias_permanencia])
      ```
      ```dax
-     Margem de Contribuicao % = DIVIDE([Margem de Contribuicao Total], [Receita Total Faturada], 0)
+     Margem de Contribuicao % = DIVIDE([Margem de Contribuicao Total], [Valor Receita / AIH (conforme origem)], BLANK())
      ```
 
 ---
 
 ## 🎨 Passo 5: Montando os Visuais
 
-Siga o roteiro de telas e wireframes detalhado em [`powerbi/dashboard_wireframe.md`](file:///Users/nycolas/gestao-hospitalar-analytics/powerbi/dashboard_wireframe.md) para montar os cartões de KPIs, gráficos de dispersão médico-financeira, mapa de calor de ocupação de leitos e análise de readmissão.
+Siga o roteiro de telas e wireframes detalhado em [`powerbi/dashboard_wireframe.md`](dashboard_wireframe.md) para montar os cartões de KPIs, gráficos de dispersão médico-financeira, mapa de calor de ocupação de leitos e análise de readmissão.
+
+## ☁️ Dados reais do Supabase
+
+Não use o usuário mestre `postgres` no Power BI. Após executar `sql/supabase_setup.sql`, um administrador deve criar um login PostgreSQL separado chamado `powerbi_reader`, revogar qualquer acesso a tabelas e conceder `SELECT` apenas nestas views:
+
+```sql
+CREATE ROLE powerbi_reader LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE
+  NOINHERIT NOREPLICATION NOBYPASSRLS PASSWORD '<senha-forte-única>';
+GRANT USAGE ON SCHEMA public TO powerbi_reader;
+GRANT SELECT ON vw_painel_executivo_mensal,
+                vw_eficiencia_leitos_setor,
+                vw_detalhe_clinico_risco,
+                vw_dim_procedimento,
+                vw_dim_diagnostico,
+                vw_dim_setor_leito,
+                vw_dim_tempo TO powerbi_reader;
+```
+
+Use essa conta no Power BI e guarde a senha em um cofre de credenciais. As views retornam somente agregações e ocultam grupos com menos de 10 internações. Não conceda `SELECT` em `fato_internacoes` ou `dim_paciente`.

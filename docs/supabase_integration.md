@@ -36,7 +36,7 @@ Este documento detalha como conectar o projeto **Healthcare Analytics** ao **Sup
 ## 📋 Pré-requisitos
 
 1. Uma conta gratuita no [Supabase](https://supabase.com).
-2. Python 3.10+ instalado no seu ambiente.
+2. Python 3.11–3.14 instalado no seu ambiente (compatível com PySUS 2.11.x).
 3. Dependências do projeto instaladas (`pip install -r requirements.txt`).
 
 ---
@@ -55,10 +55,12 @@ Este documento detalha como conectar o projeto **Healthcare Analytics** ao **Sup
 
 ### Passo 2: Executar o Script DDL no Supabase SQL Editor
 1. No menu lateral esquerdo do Supabase, clique no ícone **SQL Editor** (`>_`).
-2. Abra o arquivo local [`sql/supabase_setup.sql`](file:///Users/nycolas/Documents/gestao-hospitalar-analytics/sql/supabase_setup.sql).
+2. Abra o arquivo local [sql/supabase_setup.sql](../sql/supabase_setup.sql).
 3. Copie todo o conteúdo do arquivo e cole no editor do Supabase.
 4. Clique em **"RUN"** (ou `Ctrl + Enter` / `Cmd + Enter`).
-5. Você verá a confirmação `Success. No rows returned`. O Star Schema, índices analíticos, views e regras de RLS estarão criados.
+5. O script roda em uma transação, preserva as tabelas, remove idade exata e município da dimensão, substitui a view clínica por agregações com mínimo de 10 registros, deixa ocupação indisponível sem censo diário, restringe grants e bloqueia grants padrão em novas tabelas/sequências criadas por `postgres` em `public`. Novos objetos precisam de grants explícitos e revisão de RLS. Faça backup e revise dados antigos antes da atualização.
+6. Desative o cadastro público em **Authentication → Providers → Email** e limite as URLs de redirecionamento aos domínios usados. O login deste protótipo não implementa desafio MFA nem impõe AAL2; não anuncie MFA como obrigatório até adicionar esse fluxo e a regra de autorização correspondente.
+7. Crie/invite as contas por um fluxo administrativo confiável e defina `app_metadata.hospital_analytics_access` como booleano `true`. O próprio usuário não pode alterar `app_metadata`; não use `user_metadata` para autorização.
 
 ---
 
@@ -70,24 +72,42 @@ Este documento detalha como conectar o projeto **Healthcare Analytics** ao **Sup
 2. No painel do Supabase, acesse **Project Settings** (ícone de engrenagem) e colete as credenciais:
    - **API URL e Chaves:** Em **Project Settings -> API**:
      - `Project URL` -> defina em `SUPABASE_URL`
-     - `Project API Keys (anon public)` -> defina em `SUPABASE_KEY`
-     - `Project API Keys (service_role secret)` -> defina em `SUPABASE_SERVICE_ROLE_KEY`
-   - **Conexão Direta PostgreSQL:** Em **Project Settings -> Database -> Connection String -> URI**:
-     - Substitua `[YOUR-PASSWORD]` pela senha definida no Passo 1 e cole em `DATABASE_URL`.
+     - `Publishable key` -> defina em `SUPABASE_PUBLISHABLE_KEY` para as rotas web
+     - `Secret/service_role key` -> defina em `SUPABASE_SERVICE_ROLE_KEY` somente para o ETL local
+   - **Conexão Direta PostgreSQL:** use uma role `analytics_loader` limitada às seis tabelas do projeto, não a conta mestre `postgres`.
+
+Crie a role depois de executar o setup SQL, com senha exclusiva guardada em cofre:
+```sql
+CREATE ROLE analytics_loader LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE
+  NOINHERIT NOREPLICATION NOBYPASSRLS PASSWORD '<senha-forte-única>';
+GRANT USAGE ON SCHEMA public TO analytics_loader;
+GRANT SELECT, INSERT, UPDATE ON dim_tempo, dim_paciente, dim_procedimento,
+  dim_diagnostico, dim_setor_leito, fato_internacoes TO analytics_loader;
+CREATE POLICY analytics_loader_access ON dim_tempo FOR ALL TO analytics_loader USING (true) WITH CHECK (true);
+CREATE POLICY analytics_loader_access ON dim_paciente FOR ALL TO analytics_loader USING (true) WITH CHECK (true);
+CREATE POLICY analytics_loader_access ON dim_procedimento FOR ALL TO analytics_loader USING (true) WITH CHECK (true);
+CREATE POLICY analytics_loader_access ON dim_diagnostico FOR ALL TO analytics_loader USING (true) WITH CHECK (true);
+CREATE POLICY analytics_loader_access ON dim_setor_leito FOR ALL TO analytics_loader USING (true) WITH CHECK (true);
+CREATE POLICY analytics_loader_access ON fato_internacoes FOR ALL TO analytics_loader USING (true) WITH CHECK (true);
+```
+As políticas dão acesso às linhas para esta role de carga; mantenha a credencial só no ambiente local controlado. Se precisar usar `--truncate`, conceda `TRUNCATE` explicitamente nas seis tabelas somente durante a janela de recarga.
 
 Exemplo de `.env`:
 ```env
 SUPABASE_URL=https://xyzcompanyproject.supabase.co
-SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-DATABASE_URL=postgresql://postgres:SuaSenhaAqui@db.xyzcompanyproject.supabase.co:5432/postgres
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_sua-chave
+SUPABASE_SERVICE_ROLE_KEY=<segredo-apenas-para-carga-local-via-api>
+DATABASE_URL=postgresql://analytics_loader:<senha-forte>@db.xyzcompanyproject.supabase.co:5432/postgres
+PATIENT_DATA_HMAC_KEY=segredo-local-aleatorio-de-64-caracteres
 ```
+
+Gere `PATIENT_DATA_HMAC_KEY` com um gerador criptográfico, guarde-o fora do Git e mantenha o mesmo valor para recargas. Não use uma chave Supabase como chave HMAC. O ETL não persiste o número AIH original, idade exata ou município. O SIH/SUS não fornece uma chave persistente de pessoa nesse pipeline, então `readmissao_30d` fica desconhecida (`NULL`) para os dados reais.
 
 ---
 
 ### Passo 4: Executar a Carga de Dados Automatizada
 
-O script [`src/load_to_supabase.py`](file:///Users/nycolas/Documents/gestao-hospitalar-analytics/src/load_to_supabase.py) carrega as 5 dimensões e a tabela fato respeitando a integridade referencial:
+O script [`src/load_to_supabase.py`](../src/load_to_supabase.py) carrega as dimensões e a tabela fato respeitando a integridade referencial:
 
 #### Opção A: Carga via API PostgREST (Padrão e Recomendada - Sem necessidade de driver Postgres)
 ```bash
@@ -107,29 +127,39 @@ Para testar a integridade dos dados locais sem conectar à internet:
 python src/load_to_supabase.py --dry-run
 ```
 
+Uma substituição completa apaga os dados antes da carga e não é uma única transação via API. Faça backup, conceda temporariamente `TRUNCATE` à role de carga e confirme explicitamente: `python src/load_to_supabase.py --method direct --truncate --confirm-truncate`.
+
 ---
 
 ### Passo 5: Testar a Conexão e Integridade dos Dados
 
-Execute o script de diagnóstico para verificar se todas as tabelas e views estão ativas no Supabase:
+Execute o script de diagnóstico para verificar se as views permitidas estão ativas. Ele precisa de `SUPABASE_SERVICE_ROLE_KEY` somente no ambiente local e consulta apenas views agregadas:
 ```bash
 python src/supabase_client.py
 ```
 
-Você verá a contagem de registros em cada tabela:
-- `dim_tempo`: 365 linhas
-- `dim_paciente`: 10.800 linhas
-- `dim_procedimento`: 15 linhas
-- `dim_diagnostico`: 13 linhas
-- `dim_setor_leito`: 3 linhas
-- `fato_internacoes`: 15.000 linhas
-- Views analíticas ativas e prontas para consulta!
+O relatório mostra o estado e a contagem retornada pelas views permitidas; ele não lista linhas individuais de pacientes.
 
 ---
 
 ## 📊 Como Conectar o Power BI ao Supabase
 
-O Supabase é um banco de dados **PostgreSQL** nativo, permitindo conexão direta com o Power BI Desktop:
+Para dados reais, use um papel PostgreSQL dedicado `powerbi_reader`, nunca o usuário mestre `postgres`. Depois de executar o setup, um administrador deve criar uma role com senha única em um cofre e conceder acesso apenas às views agregadas:
+
+```sql
+CREATE ROLE powerbi_reader LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE
+  NOINHERIT NOREPLICATION NOBYPASSRLS PASSWORD '<senha-forte-única>';
+GRANT USAGE ON SCHEMA public TO powerbi_reader;
+GRANT SELECT ON vw_painel_executivo_mensal,
+                vw_eficiencia_leitos_setor,
+                vw_detalhe_clinico_risco,
+                vw_dim_procedimento,
+                vw_dim_diagnostico,
+                vw_dim_setor_leito,
+                vw_dim_tempo TO powerbi_reader;
+```
+
+As views aceitam essa role e ocultam coortes com menos de 10 internações. Não conceda acesso às tabelas base.
 
 1. No **Power BI Desktop**, clique em **Obter Dados -> Banco de Dados PostgreSQL**.
 2. No campo **Servidor**, informe o host do Supabase:
@@ -139,8 +169,8 @@ O Supabase é um banco de dados **PostgreSQL** nativo, permitindo conexão diret
    - **Importar:** Mais rápido para relatórios interativos.
    - **DirectQuery:** Para relatórios em tempo real sem importar dados localmente.
 5. Em **Autenticação**, selecione a aba **Banco de Dados**:
-   - **Nome de usuário:** `postgres` (ou `postgres.xyzcompanyproject` se estiver usando o Pooler).
-   - **Senha:** A senha mestra do banco criada no Passo 1.
+   - **Nome de usuário:** `powerbi_reader` (ou `powerbi_reader.xyzcompanyproject` no pooler, se exigido).
+   - **Senha:** a senha exclusiva dessa role, guardada no cofre.
 6. Na lista de objetos, selecione diretamente as views analíticas:
    - `vw_painel_executivo_mensal`
    - `vw_eficiencia_leitos_setor`
@@ -158,15 +188,16 @@ from src.supabase_client import query_table
 df_kpi = query_table(
     table_or_view="vw_painel_executivo_mensal",
     select="ano_mes,especialidade,volume_internacoes,margem_contribuicao,margem_pct",
-    filters={"especialidade": "eq.Ortopedia"}
+    filters={"especialidade": "Ortopedia"}
 )
 print(df_kpi.head())
 ```
 
-### Exemplo 2: Consulta via cURL / HTTP
+### Exemplo 2: Consulta via API da aplicação
 ```bash
-curl 'https://<PROJECT-REF>.supabase.co/rest/v1/vw_painel_executivo_mensal?select=*' \
-  -H "apikey: <SUA_SUPABASE_KEY>" \
-  -H "Authorization: Bearer <SUA_SUPABASE_KEY>"
+curl -c cookies.txt -X POST 'https://<APP>/api/auth/login' \
+  -H 'Origin: https://<APP>' -H 'Content-Type: application/json' \
+  --data '{"email":"<conta-aprovada>","password":"<senha>"}'
+curl -b cookies.txt 'https://<APP>/api/executive?ano_mes=2023-01'
 ```
 
