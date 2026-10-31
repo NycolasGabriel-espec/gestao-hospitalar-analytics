@@ -225,13 +225,19 @@ ALTER TABLE dim_diagnostico ENABLE ROW LEVEL SECURITY;
 ALTER TABLE dim_setor_leito ENABLE ROW LEVEL SECURITY;
 ALTER TABLE fato_internacoes ENABLE ROW LEVEL SECURITY;
 
--- Políticas de Leitura Pública / Autenticada (Permite consultas via Supabase REST API e Dashboards)
-CREATE POLICY "Permitir leitura dim_tempo" ON dim_tempo FOR SELECT TO anon, authenticated USING (true);
-CREATE POLICY "Permitir leitura dim_paciente" ON dim_paciente FOR SELECT TO anon, authenticated USING (true);
-CREATE POLICY "Permitir leitura dim_procedimento" ON dim_procedimento FOR SELECT TO anon, authenticated USING (true);
-CREATE POLICY "Permitir leitura dim_diagnostico" ON dim_diagnostico FOR SELECT TO anon, authenticated USING (true);
-CREATE POLICY "Permitir leitura dim_setor_leito" ON dim_setor_leito FOR SELECT TO anon, authenticated USING (true);
-CREATE POLICY "Permitir leitura fato_internacoes" ON fato_internacoes FOR SELECT TO anon, authenticated USING (true);
+-- Políticas de leitura apenas para usuários autenticados.
+DROP POLICY IF EXISTS "Permitir leitura dim_tempo" ON dim_tempo;
+DROP POLICY IF EXISTS "Permitir leitura dim_paciente" ON dim_paciente;
+DROP POLICY IF EXISTS "Permitir leitura dim_procedimento" ON dim_procedimento;
+DROP POLICY IF EXISTS "Permitir leitura dim_diagnostico" ON dim_diagnostico;
+DROP POLICY IF EXISTS "Permitir leitura dim_setor_leito" ON dim_setor_leito;
+DROP POLICY IF EXISTS "Permitir leitura fato_internacoes" ON fato_internacoes;
+CREATE POLICY "Permitir leitura dim_tempo" ON dim_tempo FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Permitir leitura dim_paciente" ON dim_paciente FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Permitir leitura dim_procedimento" ON dim_procedimento FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Permitir leitura dim_diagnostico" ON dim_diagnostico FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Permitir leitura dim_setor_leito" ON dim_setor_leito FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Permitir leitura fato_internacoes" ON fato_internacoes FOR SELECT TO authenticated USING (true);
 
 -- Permissões de escrita apenas para service_role (cargas de ETL/manutenção)
 CREATE POLICY "Permitir insercao service_role dim_tempo" ON dim_tempo FOR ALL TO service_role USING (true) WITH CHECK (true);
@@ -242,7 +248,9 @@ CREATE POLICY "Permitir insercao service_role dim_setor_leito" ON dim_setor_leit
 CREATE POLICY "Permitir insercao service_role fato_internacoes" ON fato_internacoes FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 -- Garantir concessão explícita de permissões para os roles do Supabase
-GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon, authenticated;
+GRANT USAGE ON SCHEMA public TO authenticated, service_role;
+REVOKE ALL ON SCHEMA public FROM anon;
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon, authenticated;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO authenticated;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
 

@@ -1,4 +1,4 @@
-import { handleError, parseLimit, queryView, requireGet, sendJson } from '../lib/api/supabase.js';
+import { handleError, parseLimit, queryView, requireAuth, requireGet, sendJson } from '../lib/api/supabase.js';
 
 const DIMENSIONS = {
   procedures: ['dim_procedimento', 'id_procedimento,descricao_procedimento,especialidade,complexidade,tmp_protocolo_previsto'],
@@ -9,13 +9,15 @@ const DIMENSIONS = {
 
 export default async function handler(req, res) {
   if (!requireGet(req, res)) return;
+  const auth = await requireAuth(req, res);
+  if (!auth) return;
   const dimension = String(req.query.dimension || '');
   const config = DIMENSIONS[dimension];
   if (!config) return sendJson(res, 400, { error: 'dimension deve ser procedures, diagnoses, beds ou months.' });
   const limit = parseLimit(req.query.limit, 1000);
   if (!limit) return sendJson(res, 400, { error: 'limit deve ser um inteiro entre 1 e 1000.' });
   try {
-    const data = await queryView(config[0], { select: config[1], limit });
+    const data = await queryView(config[0], { select: config[1], limit, accessToken: auth.accessToken });
     sendJson(res, 200, { data, count: data.length, limit });
   } catch (error) { handleError(res, error); }
 }

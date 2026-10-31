@@ -4,16 +4,55 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard Healthcare Analytics - Gestão Hospitalar</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-    .tab-active { border-bottom: 3px solid #2A9D8F; color: #1D3557; font-weight: 700; }
+    :root { --ink:#102d3a; --muted:#60737a; --paper:#f6f8f7; --line:#dce5e2; --teal:#137c70; --mint:#c9eee3; --lime:#d6f36a; --navy:#102d3a; }
+    body { font-family:'DM Sans',sans-serif; color:var(--ink); background:var(--paper); -webkit-font-smoothing:antialiased; }
+    h1,h2,h3,h4,strong { font-family:'Manrope',sans-serif; }
+    .tab-active { border-bottom:2px solid var(--teal); color:var(--teal); font-weight:700; }
+    header { background:#fff!important; color:var(--ink)!important; box-shadow:none!important; border-bottom:1px solid var(--line); }
+    header > div:first-child { max-width:1200px; padding-top:17px; padding-bottom:17px; }
+    header > div:first-child > div:first-child { gap:12px; }
+    header > div:first-child > div:first-child > span:first-child { width:34px;height:34px;border-radius:10px;background:var(--teal);display:grid;place-items:center;font-size:0; }
+    header > div:first-child > div:first-child > span:first-child:after { content:'+';font:700 27px 'DM Sans';color:white;line-height:1; }
+    header h1 { color:var(--ink);font-size:17px;letter-spacing:-.05em; }
+    header p { color:var(--muted)!important; }
+    header > div:first-child > div:last-child span { background:#f4f7f5!important;color:#52666d!important;border:1px solid var(--line)!important;border-radius:4px!important; }
+    header > div:first-child > div:last-child span:first-child { color:var(--teal)!important; }
+    header > div:last-child { background:white!important;border-top:1px solid #edf1ef; }
+    header > div:last-child > div { max-width:1200px;gap:30px;overflow-x:auto; }
+    header button { white-space:nowrap;padding:14px 2px!important;border-bottom-width:2px!important; }
+    main { max-width:1200px!important;padding-top:36px!important;padding-bottom:56px!important; }
+    main:before { content:'GESTÃO HOSPITALAR BASEADA EM DADOS';display:block;color:var(--teal);font-size:10px;font-weight:700;letter-spacing:.14em;margin-bottom:18px; }
+    main > .grid { gap:12px!important; }
+    main > .grid > div, main #section-tab1 .grid > div, main #section-tab1 > div:last-child, main #section-tab2 .grid > div, main #section-tab2 > div:last-child, main #section-tab3 .grid > div { border:1px solid var(--line)!important;border-radius:6px!important;box-shadow:0 6px 20px rgba(17,53,61,.035)!important; }
+    main > .grid > div { padding:18px!important; }
+    main > .grid > div > div:first-child p { letter-spacing:.09em!important;font-size:10px!important; }
+    main > .grid > div h3 { font-size:29px!important;letter-spacing:-.055em;color:var(--ink)!important; }
+    main > .grid > div h3 span { color:var(--muted)!important; }
+    main > .grid > div > div:first-child span { border-radius:3px!important;background:#f1f6f3!important;color:var(--teal)!important; }
+    main #section-tab1, main #section-tab2, main #section-tab3 { padding-top:8px; }
+    main #section-tab1 .grid, main #section-tab2 .grid, main #section-tab3 .grid { gap:14px!important; }
+    main h4 { color:var(--ink)!important;font-size:14px!important;letter-spacing:-.025em; }
+    main h4 + p { color:var(--muted)!important;line-height:1.6; }
+    main #section-tab2 > div:last-child > div:first-child { background:#f8faf9!important; }
+    main table thead { background:#f4f7f5!important;color:#52666d!important; }
+    main table th { font-size:10px;text-transform:uppercase;letter-spacing:.06em; }
+    main table td, main table th { padding:13px 16px!important; }
+    main #section-tab3 .border-l-4 { border-radius:3px!important; }
+    @media(max-width:700px){main{padding:26px 18px!important}header > div:last-child > div{gap:20px}.tab-active{font-size:12px}}
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
+
+  <div style="height:30px;background:#102d3a;color:#e8f5f1;display:flex;align-items:center;justify-content:center;font-size:10px;letter-spacing:.055em"><b style="color:#d6f36a;font-weight:600;margin-right:8px">INTELIGÊNCIA HOSPITALAR</b> Cuidado de qualidade e sustentabilidade podem avançar juntos.</div>
 
   <!-- Top Navigation Bar -->
   <header class="bg-[#1D3557] text-white shadow-lg sticky top-0 z-50">
@@ -21,8 +60,8 @@
       <div class="flex items-center space-x-3">
         <span class="text-3xl">🏥</span>
         <div>
-          <h1 class="text-xl font-bold tracking-tight">Hospital Analytics Suite</h1>
-          <p class="text-xs text-slate-300">Gestão de Custos, Ociosidade de Leitos e Eficiência Assistencial</p>
+          <h1 class="text-xl font-bold tracking-tight">hospital analytics</h1>
+          <p class="text-xs text-slate-300">Painel de gestão hospitalar</p>
         </div>
       </div>
       <div class="flex items-center space-x-2">
@@ -39,13 +78,13 @@
     <div class="bg-white border-b border-slate-200">
       <div class="max-w-7xl mx-auto px-4 flex space-x-8 text-sm">
         <button onclick="switchTab('tab1')" id="btn-tab1" class="py-3 px-1 text-slate-600 hover:text-slate-900 tab-active transition-all">
-          📊 Tela 1: Visão Executiva Médico-Financeira
+          Visão executiva
         </button>
         <button onclick="switchTab('tab2')" id="btn-tab2" class="py-3 px-1 text-slate-600 hover:text-slate-900 transition-all">
-          🛏️ Tela 2: Gestão de Leitos & Eficiência (ALOS)
+          Gestão de leitos
         </button>
         <button onclick="switchTab('tab3')" id="btn-tab3" class="py-3 px-1 text-slate-600 hover:text-slate-900 transition-all">
-          ⚠️ Tela 3: Risco Clínico & Readmissão 30d
+          Risco e qualidade
         </button>
       </div>
     </div>
@@ -296,7 +335,7 @@
           datasets: hospitalData.especialidades.map(e => ({
             label: e.especialidade,
             data: [{ x: e.tmp_real, y: e.margem_pct, r: Math.max(8, e.receita / 4) }],
-            backgroundColor: e.especialidade === 'Ortopedia' ? '#E63946' : (e.especialidade === 'Cirurgia Geral' ? '#2A9D8F' : '#457B9D')
+            backgroundColor: e.especialidade === 'Ortopedia' ? '#e2a35b' : (e.especialidade === 'Cirurgia Geral' ? '#137c70' : '#54a995')
           }))
         },
         options: {
@@ -315,9 +354,9 @@
         data: {
           labels: hospitalData.especialidades.map(e => e.especialidade),
           datasets: [
-            { label: 'Receita Total (R$ M)', data: hospitalData.especialidades.map(e => e.receita), backgroundColor: '#1D3557' },
-            { label: 'Custo Hospitalar (R$ M)', data: hospitalData.especialidades.map(e => (e.custo - e.opme).toFixed(2)), backgroundColor: '#457B9D' },
-            { label: 'Custo OPME / Próteses (R$ M)', data: hospitalData.especialidades.map(e => e.opme), backgroundColor: '#E63946' }
+            { label: 'Receita Total (R$ M)', data: hospitalData.especialidades.map(e => e.receita), backgroundColor: '#102d3a' },
+            { label: 'Custo Hospitalar (R$ M)', data: hospitalData.especialidades.map(e => (e.custo - e.opme).toFixed(2)), backgroundColor: '#54a995' },
+            { label: 'Custo OPME / Próteses (R$ M)', data: hospitalData.especialidades.map(e => e.opme), backgroundColor: '#e2a35b' }
           ]
         },
         options: { responsive: true, maintainAspectRatio: false }
@@ -329,8 +368,8 @@
         data: {
           labels: hospitalData.mensal.map(m => m.mes),
           datasets: [
-            { label: 'Receita Faturada (R$ M)', data: hospitalData.mensal.map(m => m.receita), borderColor: '#2A9D8F', backgroundColor: '#2A9D8F', fill: false, tension: 0.3 },
-            { label: 'Custo Operacional (R$ M)', data: hospitalData.mensal.map(m => m.custo), borderColor: '#E63946', backgroundColor: '#E63946', fill: false, tension: 0.3 }
+            { label: 'Receita Faturada (R$ M)', data: hospitalData.mensal.map(m => m.receita), borderColor: '#137c70', backgroundColor: '#137c70', fill: false, tension: 0.3 },
+            { label: 'Custo Operacional (R$ M)', data: hospitalData.mensal.map(m => m.custo), borderColor: '#e2a35b', backgroundColor: '#e2a35b', fill: false, tension: 0.3 }
           ]
         },
         options: { responsive: true, maintainAspectRatio: false }
@@ -344,7 +383,7 @@
           datasets: [{
             label: 'Taxa de Ocupação (%)',
             data: hospitalData.ocupacao.map(o => o.taxa),
-            backgroundColor: hospitalData.ocupacao.map(o => o.taxa > 85 ? '#E63946' : '#2A9D8F')
+            backgroundColor: hospitalData.ocupacao.map(o => o.taxa > 85 ? '#e2a35b' : '#137c70')
           }]
         },
         options: {
@@ -360,8 +399,8 @@
         data: {
           labels: hospitalData.especialidades.map(e => e.especialidade),
           datasets: [
-            { label: 'TMP Real (dias)', data: hospitalData.especialidades.map(e => e.tmp_real), backgroundColor: '#F4A261' },
-            { label: 'Meta de Protocolo (dias)', data: hospitalData.especialidades.map(e => e.tmp_meta), backgroundColor: '#2A9D8F' }
+            { label: 'TMP Real (dias)', data: hospitalData.especialidades.map(e => e.tmp_real), backgroundColor: '#e2a35b' },
+            { label: 'Meta de Protocolo (dias)', data: hospitalData.especialidades.map(e => e.tmp_meta), backgroundColor: '#137c70' }
           ]
         },
         options: { responsive: true, maintainAspectRatio: false }
@@ -376,7 +415,7 @@
           datasets: [{
             label: 'Taxa de Readmissão 30d (%)',
             data: hospitalData.readmissao.map(r => r.taxa),
-            backgroundColor: '#E63946'
+            backgroundColor: '#e2a35b'
           }]
         },
         options: { responsive: true, maintainAspectRatio: false }

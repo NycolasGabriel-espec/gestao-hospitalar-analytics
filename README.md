@@ -199,7 +199,7 @@ gestao-hospitalar-analytics/
 
 ### API REST na Vercel
 
-O diretório `api/` contém funções serverless somente de leitura para os dados analíticos. Importe o repositório na Vercel e configure `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY` nas variáveis de ambiente do projeto. A API também aceita `SUPABASE_KEY` como compatibilidade com a chave pública antiga. Não configure a chave `secret`/`service_role` para estas rotas.
+O diretório `api/` contém funções serverless somente de leitura para os dados analíticos. Importe o repositório na Vercel e configure `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY` nas variáveis de ambiente do projeto. A API também aceita `SUPABASE_KEY` como compatibilidade com a chave pública antiga. Não configure a chave `secret`/`service_role` para estas rotas. A página `/login.html` permite criar conta e entrar com e-mail e senha do Supabase Auth. Os endpoints de dados exigem `Authorization: Bearer <access_token>`; `/api/health` permanece público.
 
 | Rota | Uso | Filtros opcionais |
 | --- | --- | --- |
@@ -213,13 +213,14 @@ Exemplos:
 
 ```bash
 curl 'https://SEU-PROJETO.vercel.app/api/health'
-curl 'https://SEU-PROJETO.vercel.app/api/executive?ano_mes=2023-01&limit=50'
-curl 'https://SEU-PROJETO.vercel.app/api/beds?ano_mes=2023-01'
-curl 'https://SEU-PROJETO.vercel.app/api/risk?grau_severidade=Crítico&limit=25'
-curl 'https://SEU-PROJETO.vercel.app/api/filters?dimension=procedures'
+curl 'https://SEU-PROJETO.vercel.app/api/executive?ano_mes=2023-01&limit=50' \\
+  -H 'Authorization: Bearer SEU_ACCESS_TOKEN'
+curl 'https://SEU-PROJETO.vercel.app/api/beds?ano_mes=2023-01' -H 'Authorization: Bearer SEU_ACCESS_TOKEN'
+curl 'https://SEU-PROJETO.vercel.app/api/risk?grau_severidade=Crítico&limit=25' -H 'Authorization: Bearer SEU_ACCESS_TOKEN'
+curl 'https://SEU-PROJETO.vercel.app/api/filters?dimension=procedures' -H 'Authorization: Bearer SEU_ACCESS_TOKEN'
 ```
 
-As rotas retornam JSON no formato `{ "data": [...], "count": 1, "limit": 100 }`. O limite por chamada é 1.000 linhas. É necessário executar `sql/supabase_setup.sql` no Supabase para criar tabelas e views. Os dados seguem as permissões RLS e os grants configurados nesse script.
+As rotas de dados retornam JSON no formato `{ "data": [...], "count": 1, "limit": 100 }`. O limite por chamada é 1.000 linhas. Execute `sql/supabase_setup.sql` no Supabase para criar tabelas e views e restringir leitura à role `authenticated`. Em **Authentication → Providers → Email**, habilite e configure o provedor de e-mail; ajuste as URLs permitidas para incluir o domínio publicado e `http://localhost:3000/**` no desenvolvimento. A chave publishable fica acessível no navegador por desenho; nunca exponha a chave `service_role`/secret.
 
 ### Pré-requisitos
 * Python 3.10+ instalado
