@@ -1,12 +1,12 @@
 const API = {
   executive: '/api/executive?limit=1000',
-  risk: '/api/risk?limit=1000',
+  risk: '/api/risk',
 };
 const number = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
 const decimal = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 const $ = (id) => document.getElementById(id);
-const state = { executive: [], risks: [], months: [], lastUpdated: null };
+const state = { executive: [], risks: [], months: [], lastUpdated: null, riskRequest: 0, riskLoading: false, riskError: '' };
 const SVG = 'http://www.w3.org/2000/svg';
 
 function element(name, className, text) {
@@ -89,7 +89,7 @@ function configureFilters() {
   const period = $('period-filter');
   const specialty = $('specialty-filter');
   period.replaceChildren();
-  appendOption(period, 'all', 'Todas as competências');
+  appendOption(period, 'all', 'Todos os meses de admissão');
   state.months.forEach((item) => appendOption(period, item.ano_mes, monthLabel(item.ano_mes)));
   period.value = state.months.length ? state.months[0].ano_mes : 'all';
 
@@ -225,6 +225,15 @@ function renderDiagnoses() {
     .slice(0, 10);
   const body = $('diagnosis-rows');
   body.replaceChildren();
+  if (state.riskLoading || state.riskError) {
+    const row = document.createElement('tr');
+    const cell = element('td', 'table-empty', state.riskLoading ? 'Consultando as coortes da seleção…' : state.riskError);
+    cell.colSpan = 7;
+    row.append(cell);
+    body.append(row);
+    $('diagnosis-footnote').textContent = '';
+    return;
+  }
   if (!rows.length) {
     const row = document.createElement('tr');
     const cell = element('td', 'table-empty', 'Sem coortes CID-10 publicadas para esta seleção.');
@@ -246,7 +255,31 @@ function renderDiagnoses() {
     row.append(code, diagnosis, specialtyCell, age, volume, stay, mortality);
     body.append(row);
   });
-  $('diagnosis-footnote').textContent = 'Exibindo até 10 coortes. Supressão mínima de 10 internações por grupo; isso reduz exposição, mas não garante anonimização.';
+  $('diagnosis-footnote').textContent = 'Até 10 coortes com maior volume na seleção. Supressão mínima de 10 internações por grupo; isso reduz exposição, mas não garante anonimização.';
+}
+
+async function loadRisks() {
+  const request = ++state.riskRequest;
+  state.riskLoading = true;
+  state.riskError = '';
+  state.risks = [];
+  renderDiagnoses();
+  const params = new URLSearchParams({ limit: '10' });
+  if ($('period-filter').value !== 'all') params.set('ano_mes', $('period-filter').value);
+  if ($('specialty-filter').value !== 'all') params.set('especialidade', $('specialty-filter').value);
+  try {
+    const risks = await getJson(`${API.risk}?${params}`);
+    if (request === state.riskRequest) state.risks = risks;
+  } catch (error) {
+    if (request !== state.riskRequest) return;
+    if (error.access) showAccess('Entre novamente com sua conta autorizada para consultar os dados.');
+    else state.riskError = error.message || 'Não foi possível consultar as coortes.';
+  } finally {
+    if (request === state.riskRequest) {
+      state.riskLoading = false;
+      renderDiagnoses();
+    }
+  }
 }
 
 function render() {
@@ -265,16 +298,15 @@ async function loadDashboard() {
   refresh.classList.add('is-loading');
   setStatus('Consultando os dados autorizados…', 'loading');
   try {
-    const [executive, risks] = await Promise.all([
-      getJson(API.executive), getJson(API.risk),
-    ]);
+    const executive = await getJson(API.executive);
     state.executive = executive;
-    state.risks = risks;
+    state.risks = [];
     state.months = [...new Set(executive.map((item) => item.ano_mes).filter(Boolean))]
       .sort((a, b) => b.localeCompare(a)).map((ano_mes) => ({ ano_mes }));
     state.lastUpdated = new Date();
     configureFilters();
     render();
+    await loadRisks();
     $('last-updated').textContent = `Atualizado às ${new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(state.lastUpdated)}`;
   } catch (error) {
     if (error.access) {
@@ -292,8 +324,12 @@ async function loadDashboard() {
   }
 }
 
-$('period-filter').addEventListener('change', render);
-$('specialty-filter').addEventListener('change', render);
+function changeSelection() {
+  render();
+  loadRisks();
+}
+$('period-filter').addEventListener('change', changeSelection);
+$('specialty-filter').addEventListener('change', changeSelection);
 $('refresh-button').addEventListener('click', loadDashboard);
 $('logout-button').addEventListener('click', async () => {
   $('logout-button').disabled = true;

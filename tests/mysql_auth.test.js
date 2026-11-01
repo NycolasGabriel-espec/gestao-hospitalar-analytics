@@ -89,6 +89,9 @@ test('queries bind filter values and reject unapproved tables and columns', asyn
     await assert.rejects(database.queryView('app_users', { select: 'password_hash' }));
     await assert.rejects(database.queryView('vw_dim_tempo', { select: 'password_hash' }));
     assert.equal(calls.length, 1);
+    await database.queryView('vw_detalhe_clinico_risco', { select: 'cid_10,volume_internacoes', filters: { ano_mes: '2025-12' }, limit: 10 });
+    assert.match(calls[1][0], /WHERE `ano_mes` = \? ORDER BY `volume_internacoes` DESC/);
+    assert.deepEqual(calls[1][1], ['2025-12', 10]);
   } finally {
     await pool.end();
   }

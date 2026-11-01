@@ -4,7 +4,7 @@ export default async function handler(req, res) {
   if (!requireGet(req, res)) return;
   const auth = await requireAuth(req, res);
   if (!auth) return;
-  const limit = parseLimit(req.query.limit);
+  const limit = parseLimit(req.query.limit, 10);
   if (!limit) return sendJson(res, 400, { error: 'limit deve ser um inteiro entre 1 e 1000.' });
   const filters = {};
   for (const key of ['ano_mes', 'cid_10', 'especialidade', 'grau_severidade']) {
