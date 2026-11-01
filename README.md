@@ -188,7 +188,7 @@ gestao-hospitalar-analytics/
 
 ### API REST na Vercel
 
-O diretório `api/` contém funções serverless somente de leitura. Na Vercel, configure `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY` (ou uma chave `anon` legada). Nunca configure a chave `secret`/`service_role` nessas rotas. O login usa links mágicos de uso único e cookies `HttpOnly`, `Secure` em produção e `SameSite=Strict`; não exige senha nem cria contas. Desative o cadastro público no Supabase e habilite acesso somente em `app_metadata.hospital_analytics_access = true`, definido por um administrador. Não use `user_metadata` para autorização. `/api/health` permanece público.
+O diretório `api/` contém funções serverless somente de leitura. Na Vercel, configure `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY` (ou uma chave `anon` legada). Nunca configure a chave `secret`/`service_role` nessas rotas. O login aceita e-mail e senha e também oferece link mágico para contas existentes; as sessões usam cookies `HttpOnly`, `Secure` em produção e `SameSite=Strict`. O fluxo não cria contas. Desative o cadastro público no Supabase e habilite acesso somente em `app_metadata.hospital_analytics_access = true`, definido por um administrador. Não use `user_metadata` para autorização. `/api/health` permanece público.
 
 | Rota | Uso | Filtros opcionais |
 | --- | --- | --- |
@@ -211,7 +211,7 @@ curl -b cookies.txt 'https://SEU-PROJETO.vercel.app/api/risk?grau_severidade=Nã
 curl -b cookies.txt 'https://SEU-PROJETO.vercel.app/api/filters?dimension=procedures'
 ```
 
-As rotas retornam `{ "data": [...], "count": 1, "limit": 100 }`, com limite de 1.000 linhas e `Cache-Control: no-store`. Execute `sql/supabase_setup.sql` no Supabase para habilitar RLS, retirar acesso direto às tabelas e conceder somente views aprovadas. Cadastre usuários pelo fluxo administrativo do Supabase e defina `app_metadata.hospital_analytics_access` como booleano `true`. O login envia link mágico de uso único somente para contas existentes; desative signups públicos e limite as URLs de redirecionamento ao domínio publicado e aos endereços locais usados no desenvolvimento. O login deste protótipo não inclui desafio de segundo fator; habilitar MFA no painel não basta para impor AAL2, então não o considere protegido por MFA sem um fluxo de step-up e regra AAL2 nas views/API. A chave publishable pode ser pública; a chave `service_role`/secret nunca deve ir para o navegador nem para a Vercel dessas rotas.
+As rotas retornam `{ "data": [...], "count": 1, "limit": 100 }`, com limite de 1.000 linhas e `Cache-Control: no-store`. Execute `sql/supabase_setup.sql` no Supabase para habilitar RLS, retirar acesso direto às tabelas e conceder somente views aprovadas. Cadastre usuários pelo fluxo administrativo do Supabase e defina `app_metadata.hospital_analytics_access` como booleano `true`. O login aceita e-mail/senha e oferece link mágico somente para contas existentes; desative signups públicos e limite as URLs de redirecionamento ao domínio publicado e aos endereços locais usados no desenvolvimento. O login deste protótipo não inclui desafio de segundo fator; habilitar MFA no painel não basta para impor AAL2, então não o considere protegido por MFA sem um fluxo de step-up e regra AAL2 nas views/API. A chave publishable pode ser pública; a chave `service_role`/secret nunca deve ir para o navegador nem para a Vercel dessas rotas.
 
 ### Pré-requisitos
 * Python 3.11–3.14 instalado (a faixa compatível com a versão atual do PySUS)

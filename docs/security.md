@@ -7,7 +7,7 @@ O projeto trata dados de saúde como dados pessoais sensíveis. As mudanças té
 - As tabelas do projeto mantêm RLS e não são concedidas diretamente a `anon` ou `authenticated`.
 - O setup revoga grants padrão para novas tabelas e sequências criadas por `postgres` em `public`; qualquer objeto futuro precisa de grants explícitos e revisão de RLS.
 - As rotas exigem uma conta Supabase aprovada em `app_metadata.hospital_analytics_access = true`; a autorização não usa `user_metadata`.
-- O acesso usa links mágicos de uso único enviados apenas a contas existentes (`create_user=false`); não há senha nem cadastro público. As sessões do navegador ficam em cookies `HttpOnly`, `SameSite=Strict` e `Secure` em produção. As ações de sessão exigem origem igual à aplicação.
+- O acesso aceita e-mail/senha e links mágicos de uso único enviados apenas a contas existentes (`create_user=false`); não há cadastro público. As sessões do navegador ficam em cookies `HttpOnly`, `SameSite=Strict` e `Secure` em produção. As ações de sessão exigem origem igual à aplicação.
 - As views não retornam identificadores individuais e suprimem grupos com menos de 10 internações; esse limiar reduz exposição, mas não garante anonimização contra cruzamentos ou ataques por diferença.
 - A transformação SIH/SUS usa HMAC-SHA-256 com segredo local, remove número AIH, idade exata e município dos artefatos processados.
 - A taxa de readmissão fica `NULL` nos dados reais quando a fonte não permite reconhecer a mesma pessoa. O benchmark mantém apenas valores simulados.

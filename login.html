@@ -23,6 +23,8 @@
     .auth-submit { width: 100%; min-height: 43px; margin-top: 20px; border: 1px solid var(--teal); border-radius: 4px; background: var(--teal); color: #fff; font: 700 12px var(--font); cursor: pointer; transition: background .16s ease, border-color .16s ease; }
     .auth-submit:hover { border-color: var(--teal-dark); background: var(--teal-dark); }
     .auth-submit:disabled { opacity: .65; cursor: wait; }
+    .auth-link { display: block; width: 100%; min-height: 40px; margin-top: 10px; border: 0; background: transparent; color: var(--teal-dark); font: 600 11px var(--font); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+    .auth-link:disabled { opacity: .65; cursor: wait; }
     .message { min-height: 18px; margin: 13px 0 0; color: #93463b; font-size: 11px; line-height: 1.5; }
     .back { display: block; margin-top: 20px; color: var(--muted); font-size: 11px; text-align: center; text-decoration: underline; text-underline-offset: 3px; }
     .back:hover { color: var(--teal-dark); }
@@ -34,14 +36,16 @@
     <a class="brand" href="/" aria-label="Hospital Analytics, voltar ao início"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></svg></span><span>hospital <b>analytics</b></span></a>
     <div class="eyebrow">Acesso seguro</div>
     <h1 id="heading">Entre na sua conta</h1>
-    <p class="auth-intro" id="intro">Informe o e-mail da sua conta autorizada. Enviaremos um link de acesso de uso único.</p>
-    <form id="auth-form" aria-labelledby="heading">
+    <p class="auth-intro" id="intro">Entre com o e-mail e a senha da sua conta autorizada para acessar o dashboard.</p>
+    <form id="auth-form" aria-labelledby="heading" data-mode="login">
       <div id="email-field"><label for="email">E-mail</label><input id="email" name="email" type="email" autocomplete="username" maxlength="254" required></div>
+      <div id="login-password-field"><label for="login-password">Senha</label><input id="login-password" name="login_password" type="password" autocomplete="current-password" maxlength="1024" required></div>
       <div id="password-fields" hidden>
         <label id="password-label" for="password">Nova senha</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="1024">
         <div id="confirm-password-field"><label for="confirm-password">Confirme a nova senha</label><input id="confirm-password" name="confirm_password" type="password" autocomplete="new-password" minlength="8" maxlength="1024"></div>
       </div>
-      <button class="auth-submit" id="submit" type="submit">Enviar link de acesso</button>
+      <button class="auth-submit" id="submit" type="submit">Entrar no dashboard</button>
+      <button class="auth-link" id="magic-link" type="button">Receber link de acesso por e-mail</button>
     </form>
     <div class="message" id="message" role="status" aria-live="polite"></div>
     <a class="back" href="/">Voltar ao início</a>
@@ -51,8 +55,12 @@
     const message = document.querySelector('#message');
     const submit = document.querySelector('#submit');
     const emailField = document.querySelector('#email-field');
+    const loginPasswordField = document.querySelector('#login-password-field');
+    const loginPassword = document.querySelector('#login-password');
     const passwordFields = document.querySelector('#password-fields');
+    const password = document.querySelector('#password');
     const confirmPassword = document.querySelector('#confirm-password');
+    const magicLink = document.querySelector('#magic-link');
     const authParams = new URLSearchParams(location.hash.slice(1));
     const confirmedAccessToken = authParams.get('access_token');
     const recovery = authParams.get('type') === 'recovery';
@@ -61,7 +69,11 @@
       document.querySelector('#heading').textContent = 'Defina sua nova senha';
       document.querySelector('#intro').textContent = 'Escolha uma senha com pelo menos 8 caracteres.';
       emailField.hidden = true;
+      loginPasswordField.hidden = true;
+      loginPassword.required = false;
       passwordFields.hidden = false;
+      password.required = true;
+      magicLink.hidden = true;
       confirmPassword.required = true;
       submit.textContent = 'Salvar nova senha';
       form.dataset.mode = 'recovery';
@@ -96,6 +108,31 @@
       history.replaceState(null, '', location.pathname);
       message.textContent = 'Link de recuperação inválido ou expirado. Solicite um novo e-mail.';
     }
+    magicLink.addEventListener('click', async () => {
+      submit.disabled = true;
+      magicLink.disabled = true;
+      message.textContent = '';
+      try {
+        const email = form.email.value.trim();
+        if (!email) throw new Error('Informe seu e-mail para receber o link de acesso.');
+        const response = await fetch('/api/auth/magic-link', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Não foi possível enviar o link agora.');
+        message.style.color = '#137c70';
+        message.textContent = 'Se este e-mail estiver autorizado, enviaremos um link de acesso. Verifique sua caixa de entrada.';
+      } catch (error) {
+        message.style.color = '#9a4b32';
+        message.textContent = error.message;
+      } finally {
+        submit.disabled = false;
+        magicLink.disabled = false;
+      }
+    });
+
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       submit.disabled = true;
@@ -114,18 +151,14 @@
           location.assign('/powerbi/dashboard_preview.html');
           return;
         }
-        const email = form.email.value.trim();
-        const response = await fetch('/api/auth/magic-link', {
+        const response = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email }),
+          body: JSON.stringify({ email: form.email.value.trim(), password: loginPassword.value }),
         });
         const result = await response.json();
-        if (!response.ok) throw new Error(result.error || 'Não foi possível enviar o link agora.');
-        message.style.color = '#137c70';
-        message.textContent = 'Se este e-mail estiver autorizado, enviaremos um link de acesso. Verifique sua caixa de entrada.';
-        submit.textContent = 'Link solicitado';
-        submit.disabled = true;
+        if (!response.ok) throw new Error(result.error || 'Não foi possível entrar. Confira suas credenciais.');
+        location.assign('/powerbi/dashboard_preview.html');
       } catch (error) {
         message.style.color = '#9a4b32';
         message.textContent = error.message;
