@@ -26,7 +26,3 @@ venv/
 *.duckdb.wal
 
 node_modules
-
-# Cache antigo de ferramenta local; contém configurações fora do código da aplicação.
-/supabase/.temp/
-/supabase/.branches/
