@@ -14,6 +14,9 @@ import {
   verifyPassword,
 } from '../../lib/api/mysql.js';
 
+// Hash fictício para equalizar o custo de scrypt quando o e-mail não existe.
+const DUMMY_PASSWORD_HASH = 'scrypt$16384$8$1$ABEiM0RVZneImaq7zN3u_w$d-TK2Ho2RhCYBR5F4v7ZTBfMI_YsN9gbIJbrdUj_4vuWcf4MAJweW7x7L5tgJQXH3PWLxJx6kbEmniEkdSLyZQ';
+
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'private, no-store');
   if (!requirePost(req, res)) return;
@@ -37,17 +40,16 @@ export default async function handler(req, res) {
       [email],
     );
     const user = rows[0];
-    const passwordMatches = user ? await verifyPassword(password, user.password_hash) : false;
-    const authorized = passwordMatches && Number(user.hospital_analytics_access) === 1;
+    const passwordMatches = await verifyPassword(
+      password,
+      user?.password_hash || DUMMY_PASSWORD_HASH,
+    );
+    const authorized = Boolean(user) && passwordMatches && Number(user.hospital_analytics_access) === 1;
     await recordLoginAttempt(email, ipAddress, authorized);
 
-    if (!passwordMatches) {
-      clearSessionCookie(res);
-      return sendJson(res, 401, { error: 'Não foi possível entrar. Confira suas credenciais.' });
-    }
     if (!authorized) {
       clearSessionCookie(res);
-      return sendJson(res, 403, { error: 'Esta conta não está habilitada para acessar os dados.' });
+      return sendJson(res, 401, { error: 'Não foi possível entrar. Confira suas credenciais.' });
     }
 
     const token = await createSession(user.id);

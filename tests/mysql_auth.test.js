@@ -95,6 +95,11 @@ test('queries bind filter values and reject unapproved tables and columns', asyn
     await database.queryView('vw_detalhe_clinico_risco', { select: 'cid_10,volume_internacoes', filters: { ano_mes: '2025-12' }, limit: 10 });
     assert.match(calls[1][0], /WHERE `ano_mes` = \? ORDER BY `volume_internacoes` DESC/);
     assert.deepEqual(calls[1][1], ['2025-12', 10]);
+    await database.queryView('vw_public_sus_dataset_manifest', {
+      select: 'source_key,source_label,data_through,coverage_start,coverage_end,source_record_count,aggregate_row_count,loaded_at_utc',
+      limit: 10,
+    });
+    assert.match(calls[2][0], /FROM `vw_public_sus_dataset_manifest` LIMIT \?/);
   } finally {
     await pool.end();
   }
@@ -132,7 +137,7 @@ test('login issues a hashed database session only for an authorized account', as
     user.hospital_analytics_access = 0;
     const denied = response();
     await login(req, denied);
-    assert.equal(denied.statusCode, 403);
+    assert.equal(denied.statusCode, 401);
     assert.equal(sessionInserts.length, 1);
 
     const wrongPassword = response();
