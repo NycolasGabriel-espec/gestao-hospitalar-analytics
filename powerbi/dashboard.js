@@ -85,13 +85,57 @@ function monthLabel(value) {
   return `${month}/${year.slice(2)}`;
 }
 
+function fullMonthLabel(value) {
+  if (!/^\d{4}-\d{2}$/.test(value || '')) return 'período indisponível';
+  const [year, month] = value.split('-');
+  return new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+    .format(new Date(Date.UTC(Number(year), Number(month) - 1, 1, 12)));
+}
+
+function availablePeriodLabel() {
+  const periods = state.months.map((item) => item.ano_mes).sort((a, b) => a.localeCompare(b));
+  if (!periods.length) return 'sem competências disponíveis';
+  if (periods.length === 1) return fullMonthLabel(periods[0]);
+  return `${fullMonthLabel(periods[0])} a ${fullMonthLabel(periods.at(-1))}`;
+}
+
+function selectedPeriodLabel() {
+  const period = $('period-filter').value;
+  return period === 'all' ? availablePeriodLabel() : fullMonthLabel(period);
+}
+
+function trendPeriodLabel() {
+  const period = $('period-filter').value;
+  if (period !== 'all') return fullMonthLabel(period);
+  const specialty = $('specialty-filter').value;
+  const months = [...new Set(state.executive
+    .filter((row) => specialty === 'all' || row.especialidade === specialty)
+    .map((row) => row.ano_mes)
+    .filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b))
+    .slice(-12);
+  if (!months.length) return 'período indisponível';
+  if (months.length === 1) return fullMonthLabel(months[0]);
+  return `${fullMonthLabel(months[0])} a ${fullMonthLabel(months.at(-1))}`;
+}
+
+function updatePeriodCopy() {
+  const available = availablePeriodLabel();
+  const period = $('period-filter').value;
+  $('period-summary').textContent = `Alagoas · competências ${available}`;
+  $('source-period').textContent = `Competências: ${available}`;
+  $('trend-copy').textContent = period === 'all'
+    ? `${state.months.length > 12 ? 'Até 12 competências mais recentes' : 'Série completa'} · ${trendPeriodLabel()} · contagem agregada nas coortes liberadas`
+    : `Competência ${trendPeriodLabel()} · contagem agregada nas coortes liberadas`;
+}
+
 function configureFilters() {
   const period = $('period-filter');
   const specialty = $('specialty-filter');
   period.replaceChildren();
   appendOption(period, 'all', 'Todos os meses de admissão');
   state.months.forEach((item) => appendOption(period, item.ano_mes, monthLabel(item.ano_mes)));
-  period.value = state.months.length ? state.months[0].ano_mes : 'all';
+  period.value = 'all';
 
   specialty.replaceChildren();
   appendOption(specialty, 'all', 'Todas as especialidades');
@@ -126,10 +170,12 @@ function svgNode(tag, attrs = {}, text) {
 }
 
 function renderTrend() {
+  const period = $('period-filter').value;
   const specialty = $('specialty-filter').value;
   const byMonth = new Map();
   state.executive
-    .filter((row) => specialty === 'all' || row.especialidade === specialty)
+    .filter((row) => (period === 'all' || row.ano_mes === period)
+      && (specialty === 'all' || row.especialidade === specialty))
     .forEach((row) => byMonth.set(row.ano_mes, (byMonth.get(row.ano_mes) || 0) + (Number(row.volume_internacoes) || 0)));
   const points = [...byMonth.entries()].sort(([a], [b]) => a.localeCompare(b)).slice(-12);
   const host = $('trend-chart');
@@ -148,8 +194,8 @@ function renderTrend() {
     x: points.length > 1 ? left + index * stepX : left + plotW / 2,
     y: top + plotH - (value / max) * plotH,
   }));
-  const chart = svgNode('svg', { viewBox: `0 0 ${width} ${height}`, class: 'trend-svg', role: 'img', 'aria-label': 'Internações agregadas por mês de admissão nas coortes publicadas' });
-  const title = svgNode('title', {}, 'Internações por mês de admissão, grupos publicados');
+  const chart = svgNode('svg', { viewBox: `0 0 ${width} ${height}`, class: 'trend-svg', role: 'img', 'aria-label': `Internações agregadas por mês de admissão em ${trendPeriodLabel()}` });
+  const title = svgNode('title', {}, `Internações por mês de admissão, ${trendPeriodLabel()}`);
   chart.append(title);
   for (let line = 0; line <= 3; line += 1) {
     const y = top + (plotH / 3) * line;
@@ -293,13 +339,14 @@ async function loadRisks() {
 
 function render() {
   const rows = selectedRows();
+  updatePeriodCopy();
   renderMetrics(rows);
   renderTrend();
   renderRanking(rows);
   renderOutcomes(rows);
   renderDiagnoses();
   if (!state.executive.length) setStatus('Sem dados publicados. Execute a extração PySUS, a transformação local e a carga autorizada para o MySQL.', 'error');
-  else setStatus(`${number.format(rows.length)} grupos publicados na seleção. SIH/SUS · AL · competências jan–dez/2025 · agrupamento por admissão.`);
+  else setStatus(`${number.format(rows.length)} grupos publicados na seleção. SIH/SUS · Alagoas · ${selectedPeriodLabel()} · agrupamento por admissão.`);
 }
 
 async function loadDashboard() {
