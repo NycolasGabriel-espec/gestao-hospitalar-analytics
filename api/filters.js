@@ -1,4 +1,4 @@
-import { handleError, parseLimit, queryView, requireAuth, requireGet, sendJson } from '../lib/api/supabase.js';
+import { handleError, parseLimit, queryView, requireAuth, requireGet, sendJson } from '../lib/api/mysql.js';
 
 const DIMENSIONS = {
   procedures: ['vw_dim_procedimento', 'id_procedimento,descricao_procedimento,especialidade,complexidade,tmp_protocolo_previsto'],
@@ -17,7 +17,7 @@ export default async function handler(req, res) {
   const limit = parseLimit(req.query.limit, 1000);
   if (!limit) return sendJson(res, 400, { error: 'limit deve ser um inteiro entre 1 e 1000.' });
   try {
-    const data = await queryView(config[0], { select: config[1], limit, accessToken: auth.accessToken });
+    const data = await queryView(config[0], { select: config[1], limit });
     sendJson(res, 200, { data, count: data.length, limit });
   } catch (error) { handleError(res, error); }
 }

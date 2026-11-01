@@ -1,12 +1,12 @@
 const API = {
   executive: '/api/executive?limit=1000',
-  risk: '/api/risk?limit=1000',
+  risk: '/api/risk',
 };
 const number = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
 const decimal = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 const $ = (id) => document.getElementById(id);
-const state = { executive: [], risks: [], months: [], lastUpdated: null };
+const state = { executive: [], risks: [], months: [], lastUpdated: null, riskRequest: 0, riskLoading: false, riskError: '' };
 const SVG = 'http://www.w3.org/2000/svg';
 
 function element(name, className, text) {
@@ -89,7 +89,7 @@ function configureFilters() {
   const period = $('period-filter');
   const specialty = $('specialty-filter');
   period.replaceChildren();
-  appendOption(period, 'all', 'Todas as competências');
+  appendOption(period, 'all', 'Todos os meses de admissão');
   state.months.forEach((item) => appendOption(period, item.ano_mes, monthLabel(item.ano_mes)));
   period.value = state.months.length ? state.months[0].ano_mes : 'all';
 
@@ -135,7 +135,7 @@ function renderTrend() {
   const host = $('trend-chart');
   host.replaceChildren();
   if (!points.length) {
-    host.append(element('div', 'chart-empty', 'Ainda não há competências disponíveis para esta seleção.'));
+    host.append(element('div', 'chart-empty', 'Ainda não há meses de admissão disponíveis para esta seleção.'));
     return;
   }
 
@@ -148,8 +148,8 @@ function renderTrend() {
     x: points.length > 1 ? left + index * stepX : left + plotW / 2,
     y: top + plotH - (value / max) * plotH,
   }));
-  const chart = svgNode('svg', { viewBox: `0 0 ${width} ${height}`, class: 'trend-svg', role: 'img', 'aria-label': 'Internações agregadas por competência nas coortes publicadas' });
-  const title = svgNode('title', {}, 'Internações por competência, grupos publicados');
+  const chart = svgNode('svg', { viewBox: `0 0 ${width} ${height}`, class: 'trend-svg', role: 'img', 'aria-label': 'Internações agregadas por mês de admissão nas coortes publicadas' });
+  const title = svgNode('title', {}, 'Internações por mês de admissão, grupos publicados');
   chart.append(title);
   for (let line = 0; line <= 3; line += 1) {
     const y = top + (plotH / 3) * line;
@@ -174,10 +174,16 @@ function renderRanking(rows) {
   const host = $('specialty-ranking');
   host.replaceChildren();
   if (!rows.length) {
-    host.append(element('div', 'chart-empty', 'Sem grupos publicados nesta competência.'));
+    host.append(element('div', 'chart-empty', 'Sem grupos publicados nesta seleção.'));
     return;
   }
-  const sorted = [...rows].sort((a, b) => Number(b.volume_internacoes || 0) - Number(a.volume_internacoes || 0)).slice(0, 6);
+  const bySpecialty = new Map();
+  rows.forEach((row) => {
+    const name = row.especialidade || 'Não classificada';
+    bySpecialty.set(name, (bySpecialty.get(name) || 0) + Number(row.volume_internacoes || 0));
+  });
+  const sorted = [...bySpecialty].map(([especialidade, volume_internacoes]) => ({ especialidade, volume_internacoes }))
+    .sort((a, b) => b.volume_internacoes - a.volume_internacoes).slice(0, 6);
   const maximum = Math.max(1, ...sorted.map((row) => Number(row.volume_internacoes) || 0));
   sorted.forEach((row) => {
     const line = element('div', 'rank-row');
@@ -196,6 +202,8 @@ function renderRanking(rows) {
 function renderOutcomes(rows) {
   const host = $('outcomes-list');
   host.replaceChildren();
+  const allPeriods = $('period-filter').value === 'all';
+  $('outcomes-title').textContent = allPeriods ? 'Mortalidade por especialidade e mês' : 'Mortalidade por especialidade';
   const available = rows.filter((row) => isKnownNumber(row.taxa_mortalidade_pct))
     .sort((a, b) => Number(b.taxa_mortalidade_pct) - Number(a.taxa_mortalidade_pct)).slice(0, 5);
   if (!available.length) {
@@ -205,7 +213,8 @@ function renderOutcomes(rows) {
   const maximum = Math.max(1, ...available.map((row) => Number(row.taxa_mortalidade_pct)));
   available.forEach((row) => {
     const line = element('div', 'outcome-row');
-    line.append(element('span', 'outcome-name', row.especialidade || 'Não classificada'));
+    const name = `${row.especialidade || 'Não classificada'}${allPeriods ? ` · ${monthLabel(row.ano_mes)}` : ''}`;
+    line.append(element('span', 'outcome-name', name));
     const track = element('span', 'outcome-track');
     const fill = element('span', 'outcome-fill');
     fill.style.width = `${Math.max(2, Number(row.taxa_mortalidade_pct) / maximum * 100)}%`;
@@ -225,6 +234,15 @@ function renderDiagnoses() {
     .slice(0, 10);
   const body = $('diagnosis-rows');
   body.replaceChildren();
+  if (state.riskLoading || state.riskError) {
+    const row = document.createElement('tr');
+    const cell = element('td', 'table-empty', state.riskLoading ? 'Consultando as coortes da seleção…' : state.riskError);
+    cell.colSpan = 7;
+    row.append(cell);
+    body.append(row);
+    $('diagnosis-footnote').textContent = '';
+    return;
+  }
   if (!rows.length) {
     const row = document.createElement('tr');
     const cell = element('td', 'table-empty', 'Sem coortes CID-10 publicadas para esta seleção.');
@@ -246,7 +264,31 @@ function renderDiagnoses() {
     row.append(code, diagnosis, specialtyCell, age, volume, stay, mortality);
     body.append(row);
   });
-  $('diagnosis-footnote').textContent = 'Exibindo até 10 coortes. Supressão mínima de 10 internações por grupo; isso reduz exposição, mas não garante anonimização.';
+  $('diagnosis-footnote').textContent = 'Até 10 coortes com maior volume na seleção. Supressão mínima de 10 internações por grupo; isso reduz exposição, mas não garante anonimização.';
+}
+
+async function loadRisks() {
+  const request = ++state.riskRequest;
+  state.riskLoading = true;
+  state.riskError = '';
+  state.risks = [];
+  renderDiagnoses();
+  const params = new URLSearchParams({ limit: '10' });
+  if ($('period-filter').value !== 'all') params.set('ano_mes', $('period-filter').value);
+  if ($('specialty-filter').value !== 'all') params.set('especialidade', $('specialty-filter').value);
+  try {
+    const risks = await getJson(`${API.risk}?${params}`);
+    if (request === state.riskRequest) state.risks = risks;
+  } catch (error) {
+    if (request !== state.riskRequest) return;
+    if (error.access) showAccess('Entre novamente com sua conta autorizada para consultar os dados.');
+    else state.riskError = error.message || 'Não foi possível consultar as coortes.';
+  } finally {
+    if (request === state.riskRequest) {
+      state.riskLoading = false;
+      renderDiagnoses();
+    }
+  }
 }
 
 function render() {
@@ -256,8 +298,8 @@ function render() {
   renderRanking(rows);
   renderOutcomes(rows);
   renderDiagnoses();
-  if (!state.executive.length) setStatus('Sem dados publicados. Execute a extração PySUS, a transformação local e a carga autorizada para o Supabase.', 'error');
-  else setStatus(`${number.format(rows.length)} grupos publicados na seleção. Dados agregados do SIH/SUS processados pelo pipeline PySUS.`);
+  if (!state.executive.length) setStatus('Sem dados publicados. Execute a extração PySUS, a transformação local e a carga autorizada para o MySQL.', 'error');
+  else setStatus(`${number.format(rows.length)} grupos publicados na seleção. SIH/SUS · AL · competências jan–dez/2025 · agrupamento por admissão.`);
 }
 
 async function loadDashboard() {
@@ -265,16 +307,15 @@ async function loadDashboard() {
   refresh.classList.add('is-loading');
   setStatus('Consultando os dados autorizados…', 'loading');
   try {
-    const [executive, risks] = await Promise.all([
-      getJson(API.executive), getJson(API.risk),
-    ]);
+    const executive = await getJson(API.executive);
     state.executive = executive;
-    state.risks = risks;
+    state.risks = [];
     state.months = [...new Set(executive.map((item) => item.ano_mes).filter(Boolean))]
       .sort((a, b) => b.localeCompare(a)).map((ano_mes) => ({ ano_mes }));
     state.lastUpdated = new Date();
     configureFilters();
     render();
+    await loadRisks();
     $('last-updated').textContent = `Atualizado às ${new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(state.lastUpdated)}`;
   } catch (error) {
     if (error.access) {
@@ -292,8 +333,12 @@ async function loadDashboard() {
   }
 }
 
-$('period-filter').addEventListener('change', render);
-$('specialty-filter').addEventListener('change', render);
+function changeSelection() {
+  render();
+  loadRisks();
+}
+$('period-filter').addEventListener('change', changeSelection);
+$('specialty-filter').addEventListener('change', changeSelection);
 $('refresh-button').addEventListener('click', loadDashboard);
 $('logout-button').addEventListener('click', async () => {
   $('logout-button').disabled = true;

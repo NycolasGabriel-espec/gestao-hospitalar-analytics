@@ -1,9 +1,9 @@
 # 🏥 Healthcare Analytics: Gestão de Custos, Ociosidade de Leitos e Eficiência Hospitalar
 
 ![Python](https://img.shields.io/badge/Python-3.14-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![Supabase](https://img.shields.io/badge/Supabase-Cloud%20PostgreSQL-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-8%2B-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
 ![DuckDB](https://img.shields.io/badge/DuckDB-In--Process%20OLAP-FFF000?style=for-the-badge&logo=duckdb&logoColor=black)
-![SQL](https://img.shields.io/badge/SQL-Star%20Schema-CC292B?style=for-the-badge&logo=postgresql&logoColor=white)
+![SQL](https://img.shields.io/badge/SQL-Star%20Schema-CC292B?style=for-the-badge&logo=mysql&logoColor=white)
 ![PowerBI](https://img.shields.io/badge/Power_BI-DAX%20Analytics-F2C811?style=for-the-badge&logo=powerbi&logoColor=black)
 ![DATASUS](https://img.shields.io/badge/Data-SIH%2FSUS%20%2B%20Benchmark-009B3A?style=for-the-badge)
 
@@ -42,16 +42,16 @@ A governança executiva precisa responder a quatro perguntas estratégicas:
                            │
        ┌───────────────────┴───────────────────┐
        ▼                                       ▼
-[ DuckDB / Supabase Cloud ]            [ Power BI / Looker ]
+[ DuckDB / MySQL ]                     [ Power BI / Looker ]
  • 02_analytical_queries.sql            • Painel Executivo Médico-Financeiro
- • sql/supabase_setup.sql               • Detalhamento de Risco e Readmissão
+ • sql/mysql_setup.sql                  • Detalhamento de Risco e Readmissão
 ```
 
 ---
 
 ## ⭐ 3. Modelagem Dimensional (Star Schema)
 
-A modelagem analítica foi construída em esquema estrela (*Star Schema*), otimizada para alto desempenho em bancos colunares (DuckDB, BigQuery, PostgreSQL):
+A modelagem analítica foi construída em esquema estrela (*Star Schema*), compatível com DuckDB e MySQL 8+:
 
 ```mermaid
 erDiagram
@@ -135,7 +135,7 @@ No fluxo SIH/SUS, a chave AIH é pseudonimizada com HMAC e não representa uma p
 
 ## 📊 5. Estrutura das Telas do Dashboard (Power BI / Looker)
 
-O projeto contém um preview estático sintético, wireframes e fórmulas DAX em [`powerbi/`](powerbi/). O preview é público e não está conectado às rotas autenticadas; ele não contém dados reais.
+O projeto contém o dashboard HTML conectado às rotas autenticadas, wireframes e fórmulas DAX em [`powerbi/`](powerbi/). A página inicial apresenta um exemplo sintético; o dashboard autenticado consulta as views agregadas do MySQL. O recorte publicado usa SIH/SUS de Alagoas, competências de janeiro a dezembro de 2025; os gráficos agrupam por mês de admissão.
 
 1. **Tela 1: Visão Executiva Médico-Financeira**
    * KPIs: Total de Internações e TMP Médio. Margem e valores financeiros só aparecem com uma fonte contábil validada; readmissão exige uma fonte com identificador de pessoa apropriado.
@@ -161,13 +161,16 @@ gestao-hospitalar-analytics/
 │   ├── raw/                  # Arquivos brutos baixados (Parquet SIH/SUS DATASUS)
 │   └── processed/            # Tabelas dimensionais, Fato e banco DuckDB
 ├── sql/
-│   ├── 01_ddl_star_schema.sql         # Nota de compatibilidade; setup protegido é centralizado
+│   ├── mysql_setup.sql                # Star Schema, contas e views agregadas no MySQL
+│   ├── mysql_grants.sql               # Permissões mínimas das contas web, ETL e BI
 │   ├── 02_analytical_queries.sql      # Queries analíticas (Margem, TMP, Leitos, Readmissão, ABC)
 │   └── 03_views_bi.sql                # Nota de compatibilidade; views ficam no setup protegido
 ├── src/
 │   ├── extract_sih_sus.py             # Extração automatizada de AIH do DATASUS via PySUS
 │   ├── transform_star_schema.py       # Pipeline ETL de saneamento e modelagem dimensional
-│   └── generate_benchmark_dataset.py  # Gerador de benchmark hospitalar clínico-financeiro
+│   ├── generate_benchmark_dataset.py  # Gerador de benchmark hospitalar clínico-financeiro
+│   ├── load_to_mysql.py               # Carga direta idempotente em MySQL
+│   └── mysql_client.py                # Diagnóstico e consultas das views agregadas
 ├── powerbi/
 │   ├── dashboard_preview.html         # Painel HTML com dados agregados das rotas protegidas
 │   ├── dashboard.css                  # Layout responsivo do painel
@@ -188,7 +191,7 @@ gestao-hospitalar-analytics/
 
 ### API REST na Vercel
 
-O diretório `api/` contém funções serverless somente de leitura. Na Vercel, configure `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY` (ou uma chave `anon` legada). Nunca configure a chave `secret`/`service_role` nessas rotas. O login usa links mágicos de uso único e cookies `HttpOnly`, `Secure` em produção e `SameSite=Strict`; não exige senha nem cria contas. Desative o cadastro público no Supabase e habilite acesso somente em `app_metadata.hospital_analytics_access = true`, definido por um administrador. Não use `user_metadata` para autorização. `/api/health` permanece público.
+O diretório `api/` contém funções serverless. Configure na Vercel `MYSQL_URL` com a URL do banco MySQL, `MYSQL_TLS=true`, a CA TLS em `MYSQL_SSL_CA` quando exigida e `AUTH_RATE_LIMIT_SECRET` (32 bytes aleatórios). Use a conta `dashboard_app` com permissões somente nas views e tabelas de autenticação; não use `root`. O login aceita e-mail e senha de contas previamente autorizadas. As sessões ficam em cookies `HttpOnly`, `Secure` em produção e `SameSite=Strict`; o cadastro público fica desativado. `/api/health` permanece público.
 
 | Rota | Uso | Filtros opcionais |
 | --- | --- | --- |
@@ -202,16 +205,16 @@ Exemplos:
 
 ```bash
 curl 'https://SEU-PROJETO.vercel.app/api/health'
-curl -X POST 'https://SEU-PROJETO.vercel.app/api/auth/magic-link' \
+curl -c cookies.txt -X POST 'https://SEU-PROJETO.vercel.app/api/auth/login' \
   -H 'Origin: https://SEU-PROJETO.vercel.app' -H 'Content-Type: application/json' \
-  --data '{"email":"usuario@hospital.org"}'
+  --data '{"email":"usuario@hospital.org","password":"SENHA"}'
 curl -b cookies.txt 'https://SEU-PROJETO.vercel.app/api/executive?ano_mes=2023-01&limit=50'
 curl -b cookies.txt 'https://SEU-PROJETO.vercel.app/api/beds?ano_mes=2023-01'
 curl -b cookies.txt 'https://SEU-PROJETO.vercel.app/api/risk?grau_severidade=Não%20classificado&limit=25'
 curl -b cookies.txt 'https://SEU-PROJETO.vercel.app/api/filters?dimension=procedures'
 ```
 
-As rotas retornam `{ "data": [...], "count": 1, "limit": 100 }`, com limite de 1.000 linhas e `Cache-Control: no-store`. Execute `sql/supabase_setup.sql` no Supabase para habilitar RLS, retirar acesso direto às tabelas e conceder somente views aprovadas. Cadastre usuários pelo fluxo administrativo do Supabase e defina `app_metadata.hospital_analytics_access` como booleano `true`. O login envia link mágico de uso único somente para contas existentes; desative signups públicos e limite as URLs de redirecionamento ao domínio publicado e aos endereços locais usados no desenvolvimento. O login deste protótipo não inclui desafio de segundo fator; habilitar MFA no painel não basta para impor AAL2, então não o considere protegido por MFA sem um fluxo de step-up e regra AAL2 nas views/API. A chave publishable pode ser pública; a chave `service_role`/secret nunca deve ir para o navegador nem para a Vercel dessas rotas.
+As rotas retornam `{ "data": [...], "count": 1, "limit": 100 }`, com limite de 1.000 linhas e `Cache-Control: no-store`. Execute `sql/mysql_setup.sql` como administrador do banco e depois aplique `sql/mysql_grants.sql`, substituindo nomes e senhas de exemplo. As views ocultam grupos com menos de 10 registros. Crie ou atualize uma conta autorizada com `INITIAL_ADMIN_EMAIL=<email> npm run mysql:bootstrap-user`; o script solicita a senha sem mostrá-la. A Vercel recebe somente a URL da conta web limitada, nunca a credencial administrativa. Configure TLS validado e faça backup do volume MySQL.
 
 ### Pré-requisitos
 * Python 3.11–3.14 instalado (a faixa compatível com a versão atual do PySUS)
@@ -254,24 +257,21 @@ print(con.execute('SELECT especialidade, COUNT(*), ROUND(AVG(dias_permanencia), 
 "
 ```
 
-6. **Carregar o Star Schema no Supabase (Nuvem):**
-* Execute o script [sql/supabase_setup.sql](sql/supabase_setup.sql) no **SQL Editor** do Supabase. Ele não apaga as tabelas; remove idade exata e município da dimensão e recria a view clínica em forma agregada. Faça backup antes da atualização. O setup não re-HMACa identificadores antigos; após a migração, substitua as linhas antigas a partir de arquivos processados com a chave HMAC antes de habilitar usuários.
-* Copie o arquivo de variáveis de ambiente: `cp .env.example .env` e adicione suas credenciais do projeto Supabase.
-* Execute a carga automatizada:
+6. **Carregar o Star Schema no MySQL:**
+* Disponibilize um banco MySQL 8+ acessível pelas funções Vercel, com armazenamento persistente e TLS. A Vercel hospeda a aplicação e conecta bancos externos; as opções do Marketplace são descritas na [documentação de storage](https://vercel.com/docs/storage).
+* Execute [sql/mysql_setup.sql](sql/mysql_setup.sql) no banco criado e aplique [sql/mysql_grants.sql](sql/mysql_grants.sql) com usuários separados para aplicação, ETL e Power BI.
+* Copie `.env.example` para `.env`, configure a URL pública do MySQL e os segredos locais. A URL de produção deve usar TLS com certificado validado.
+* Gere ou extraia os arquivos em `data/processed/`, valide e carregue:
 ```bash
-# Carga via API REST PostgREST (não requer driver PostgreSQL)
-python3 src/load_to_supabase.py --method api
-
-# Ou carga direta PostgreSQL (via SQLAlchemy / psycopg2)
-python3 src/load_to_supabase.py --method direct
+python3 src/load_to_mysql.py --dry-run
+python3 src/load_to_mysql.py
 ```
-Para substituir dados anteriores, faça backup e use explicitamente `--method direct --truncate --confirm-truncate` com a role local apropriada.
-* Consulte o guia completo em [`docs/supabase_integration.md`](docs/supabase_integration.md).
+Para substituir dados anteriores, faça backup e use explicitamente `--truncate --confirm-truncate` com a role ETL apropriada. Consulte [`docs/mysql_integration.md`](docs/mysql_integration.md) para provisionamento e permissões.
 
 7. **Importar no Power BI:**
 * Abra o Power BI Desktop.
 * Gere o dataset antes de importar os arquivos de [`data/processed/`](data/processed/). Esses arquivos são ignorados pelo Git porque o pipeline real pode gerar dados de saúde.
-* Para o Supabase, use um login PostgreSQL dedicado `powerbi_reader` com acesso somente às views agregadas; nunca use o usuário mestre `postgres`. Veja as instruções em [docs/supabase_integration.md](docs/supabase_integration.md).
+* Para conectar ao banco, use `powerbi_reader` com `SELECT` somente nas views agregadas; nunca use `root`. Veja [docs/mysql_integration.md](docs/mysql_integration.md).
 * Cole as medidas DAX do arquivo [`powerbi/dax_measures.dax`](powerbi/dax_measures.dax).
 
 ---

@@ -2,7 +2,7 @@
 -- PROJETO: Healthcare Analytics - Gestão Hospitalar & Eficiência Assistencial
 -- ARQUIVO: 02_analytical_queries.sql
 -- DESCRIÇÃO: Consultas SQL Analíticas Avançadas para Responder às Dores de Negócio
--- DIALETO: PostgreSQL / DuckDB (uses FILTER and window functions)
+-- DIALETO: DuckDB (uses FILTER and window functions); use mysql_setup.sql for MySQL views.
 -- Estas consultas são modelos. Valores clínicos ou financeiros desconhecidos
 -- devem continuar NULL; limiares não substituem validação especializada.
 -- ==============================================================================

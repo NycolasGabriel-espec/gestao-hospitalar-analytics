@@ -1,3 +1,16 @@
 {
-  "type": "module"
+  "name": "gestao-hospitalar-analytics",
+  "engines": {
+    "node": ">=20"
+  },
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "mysql:setup": "node scripts/setup_mysql.js",
+    "mysql:bootstrap-user": "node --env-file=.env scripts/bootstrap_mysql_user.js"
+  },
+  "dependencies": {
+    "@vercel/functions": "3.6.1",
+    "mysql2": "^3.24.6"
+  }
 }

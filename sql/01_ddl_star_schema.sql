@@ -1,4 +1,0 @@
--- DDL consolidado em sql/supabase_setup.sql, que habilita RLS e define os
--- grants seguros. O antigo script apagava tabelas e criava tabelas públicas
--- sem proteção. Para processamento local, src/transform_star_schema.py cria o
--- DuckDB sem executar este arquivo.
