@@ -135,7 +135,7 @@ function renderTrend() {
   const host = $('trend-chart');
   host.replaceChildren();
   if (!points.length) {
-    host.append(element('div', 'chart-empty', 'Ainda não há competências disponíveis para esta seleção.'));
+    host.append(element('div', 'chart-empty', 'Ainda não há meses de admissão disponíveis para esta seleção.'));
     return;
   }
 
@@ -148,8 +148,8 @@ function renderTrend() {
     x: points.length > 1 ? left + index * stepX : left + plotW / 2,
     y: top + plotH - (value / max) * plotH,
   }));
-  const chart = svgNode('svg', { viewBox: `0 0 ${width} ${height}`, class: 'trend-svg', role: 'img', 'aria-label': 'Internações agregadas por competência nas coortes publicadas' });
-  const title = svgNode('title', {}, 'Internações por competência, grupos publicados');
+  const chart = svgNode('svg', { viewBox: `0 0 ${width} ${height}`, class: 'trend-svg', role: 'img', 'aria-label': 'Internações agregadas por mês de admissão nas coortes publicadas' });
+  const title = svgNode('title', {}, 'Internações por mês de admissão, grupos publicados');
   chart.append(title);
   for (let line = 0; line <= 3; line += 1) {
     const y = top + (plotH / 3) * line;
@@ -174,10 +174,16 @@ function renderRanking(rows) {
   const host = $('specialty-ranking');
   host.replaceChildren();
   if (!rows.length) {
-    host.append(element('div', 'chart-empty', 'Sem grupos publicados nesta competência.'));
+    host.append(element('div', 'chart-empty', 'Sem grupos publicados nesta seleção.'));
     return;
   }
-  const sorted = [...rows].sort((a, b) => Number(b.volume_internacoes || 0) - Number(a.volume_internacoes || 0)).slice(0, 6);
+  const bySpecialty = new Map();
+  rows.forEach((row) => {
+    const name = row.especialidade || 'Não classificada';
+    bySpecialty.set(name, (bySpecialty.get(name) || 0) + Number(row.volume_internacoes || 0));
+  });
+  const sorted = [...bySpecialty].map(([especialidade, volume_internacoes]) => ({ especialidade, volume_internacoes }))
+    .sort((a, b) => b.volume_internacoes - a.volume_internacoes).slice(0, 6);
   const maximum = Math.max(1, ...sorted.map((row) => Number(row.volume_internacoes) || 0));
   sorted.forEach((row) => {
     const line = element('div', 'rank-row');
@@ -196,6 +202,8 @@ function renderRanking(rows) {
 function renderOutcomes(rows) {
   const host = $('outcomes-list');
   host.replaceChildren();
+  const allPeriods = $('period-filter').value === 'all';
+  $('outcomes-title').textContent = allPeriods ? 'Mortalidade por especialidade e mês' : 'Mortalidade por especialidade';
   const available = rows.filter((row) => isKnownNumber(row.taxa_mortalidade_pct))
     .sort((a, b) => Number(b.taxa_mortalidade_pct) - Number(a.taxa_mortalidade_pct)).slice(0, 5);
   if (!available.length) {
@@ -205,7 +213,8 @@ function renderOutcomes(rows) {
   const maximum = Math.max(1, ...available.map((row) => Number(row.taxa_mortalidade_pct)));
   available.forEach((row) => {
     const line = element('div', 'outcome-row');
-    line.append(element('span', 'outcome-name', row.especialidade || 'Não classificada'));
+    const name = `${row.especialidade || 'Não classificada'}${allPeriods ? ` · ${monthLabel(row.ano_mes)}` : ''}`;
+    line.append(element('span', 'outcome-name', name));
     const track = element('span', 'outcome-track');
     const fill = element('span', 'outcome-fill');
     fill.style.width = `${Math.max(2, Number(row.taxa_mortalidade_pct) / maximum * 100)}%`;
