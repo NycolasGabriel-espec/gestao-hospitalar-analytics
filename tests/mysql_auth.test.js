@@ -58,6 +58,9 @@ test('remote pool validates both the certificate chain and server identity', asy
     assert.equal(config.ssl.rejectUnauthorized, true);
     assert.equal(config.ssl.verifyIdentity, true);
     assert.equal(pool.pool.config.connectionLimit, 2);
+    assert.equal(pool.pool.config.maxIdle, 1);
+    assert.equal(pool.pool.config.idleTimeout, 5000);
+    assert.equal(pool.listenerCount('release'), 1);
   } finally {
     await pool.end();
   }
