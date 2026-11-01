@@ -47,6 +47,8 @@ try {
   await db.query(`CREATE DATABASE IF NOT EXISTS \`${databaseName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci`);
   await db.query(`USE \`${databaseName}\``);
   await db.query(await readFile('sql/mysql_setup.sql', 'utf8'));
+  await db.query(await readFile('sql/06_benchmark_mysql.sql', 'utf8'));
+  await db.query(await readFile('sql/07_public_sus_mysql.sql', 'utf8'));
   for (const username of usernames) {
     const url = new URL(runtime.urls[username]);
     await db.query(`CREATE USER IF NOT EXISTS '${username}'@'%' IDENTIFIED BY ? REQUIRE SSL`, [decodeURIComponent(url.password)]);

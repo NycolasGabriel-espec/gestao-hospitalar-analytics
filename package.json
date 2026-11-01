@@ -1,5 +1,6 @@
 {
   "name": "gestao-hospitalar-analytics",
+  "license": "MIT",
   "engines": {
     "node": ">=20"
   },
@@ -7,6 +8,9 @@
   "scripts": {
     "test": "node --test",
     "mysql:setup": "node scripts/setup_mysql.js",
+    "mysql:benchmark:setup": "node scripts/migrate_benchmark_mysql.js",
+    "mysql:public-sus:setup": "node scripts/migrate_public_sus_mysql.js",
+    "mysql:panorama-2025:setup": "node scripts/migrate_panorama_2025_mysql.js",
     "mysql:bootstrap-user": "node --env-file=.env scripts/bootstrap_mysql_user.js"
   },
   "dependencies": {
