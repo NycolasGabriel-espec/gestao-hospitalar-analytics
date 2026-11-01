@@ -44,6 +44,10 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5M8 10.5h5m-2.5-2.5v5"/></svg>
           <span>Diagnósticos</span>
         </a>
+        <a class="nav-link" href="#benchmark-panel">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5h16M6.5 16V9m5 7V4.5m5 11.5v-5"/><path d="M4.5 20V4"/></svg>
+          <span>Benchmark público SUS</span>
+        </a>
         <a class="nav-link" href="../docs/data_dictionary.md">
           <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8.5" ry="3"/><path d="M3.5 5v6c0 1.7 3.8 3 8.5 3s8.5-1.3 8.5-3V5M3.5 11v6c0 1.7 3.8 3 8.5 3s8.5-1.3 8.5-3v-6"/></svg>
           <span>Fonte e metodologia</span>
@@ -82,13 +86,13 @@
       <main id="main" class="page-shell">
         <section class="page-heading" aria-labelledby="page-title">
           <div class="page-heading-copy">
-            <div class="eyebrow"><span class="eyebrow-line" aria-hidden="true"></span>PAINEL EXECUTIVO · SIH/SUS</div>
+            <div class="eyebrow"><span class="eyebrow-line" aria-hidden="true"></span>PAINEL EXECUTIVO · SIH/SUS · 2025</div>
             <h1 id="page-title">Panorama de internações</h1>
-            <p class="lede" id="period-summary">Alagoas · competências aguardando dados</p>
+            <p class="lede" id="period-summary">Alagoas · admissões de janeiro a dezembro de 2025</p>
           </div>
           <div class="filters" role="group" aria-label="Filtros do painel">
             <div class="filter-field">
-              <label for="period-filter">Período</label>
+              <label for="period-filter">Período de admissão · 2025</label>
               <select id="period-filter" disabled><option value="">Carregando…</option></select>
             </div>
             <div class="filter-field">
@@ -189,9 +193,116 @@
           <p class="table-footnote" id="diagnosis-footnote"></p>
         </section>
 
+        <section class="benchmark-section" id="benchmark-panel" aria-labelledby="benchmark-title">
+          <div class="benchmark-heading">
+            <div>
+              <p class="panel-kicker">FONTES PÚBLICAS · SUS · ALAGOAS</p>
+              <h2 id="benchmark-title">Benchmark operacional hospitalar</h2>
+              <p class="panel-copy">AIHs e valores registrados no SIH/SUS, leitos do CNES e fila regulatória SISREG.</p>
+            </div>
+            <div class="benchmark-filters" role="group" aria-label="Filtros dos dados públicos SUS">
+              <div class="filter-field">
+                <label for="benchmark-period">Mês da admissão</label>
+                <select id="benchmark-period" disabled><option value="all">Carregando…</option></select>
+                <span class="benchmark-filter-note">O seletor ajusta os indicadores e o ranking; as séries mensais mostram 2025 completo.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="benchmark-notice" id="benchmark-notice" role="status" aria-live="polite">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span id="benchmark-status-text">Consultando os agregados públicos…</span>
+            <span class="benchmark-meta" id="benchmark-meta"></span>
+          </div>
+
+          <div class="metric-band benchmark-metrics" aria-label="Indicadores operacionais de fontes públicas">
+            <article class="metric metric-primary">
+              <div class="metric-label">AIHs no SIH/SUS</div>
+              <div class="metric-value" id="benchmark-volume">—</div>
+              <div class="metric-note">Registros consolidados pelo número da AIH</div>
+            </article>
+            <article class="metric">
+              <div class="metric-label">Permanência média por AIH</div>
+              <div class="metric-value" id="benchmark-wait">—</div>
+              <div class="metric-note">Dias registrados nas AIHs</div>
+            </article>
+            <article class="metric">
+              <div class="metric-label">Valor registrado nas AIHs</div>
+              <div class="metric-value" id="benchmark-cost">—</div>
+              <div class="metric-note">Valor aprovado/faturado · não é custo hospitalar</div>
+            </article>
+            <article class="metric metric-muted">
+              <div class="metric-label">Ocupação estimada</div>
+              <div class="metric-value" id="benchmark-occupancy">—</div>
+              <div class="metric-note" id="benchmark-occupancy-note">Proxy SIH/CNES; não é censo de leitos</div>
+            </article>
+          </div>
+
+          <div class="analysis-grid benchmark-grid">
+            <article class="panel benchmark-panel" aria-labelledby="benchmark-wait-title">
+              <div class="panel-heading">
+                <div><p class="panel-kicker">FILA REGULATÓRIA · SISREG</p><h3 id="benchmark-wait-title">Procedimentos com maior espera acumulada</h3></div>
+                <span class="panel-unit">P90 em dias</span>
+              </div>
+              <p class="panel-copy">Solicitações ainda pendentes no recorte estadual extraído em 10/08/2025. Exibe grupos com pelo menos 30 solicitações; não mede espera interna por setor.</p>
+              <div class="benchmark-bars" id="benchmark-wait-chart"><div class="chart-empty">Aguardando dados…</div></div>
+            </article>
+
+            <article class="panel benchmark-panel" aria-labelledby="benchmark-occupancy-title">
+              <div class="panel-heading">
+                <div><p class="panel-kicker">SIH/SUS + CNES</p><h3 id="benchmark-occupancy-title">Ocupação estimada por mês</h3></div>
+                <span class="panel-unit">Proxy em %</span>
+              </div>
+              <p class="panel-copy">Dias de permanência SIH divididos pelos leitos SUS cadastrados no CNES × dias do mês. É uma aproximação estadual, não um censo hospitalar observado.</p>
+              <div class="benchmark-occupancy-chart" id="benchmark-occupancy-chart"><div class="chart-empty">Aguardando dados…</div></div>
+            </article>
+          </div>
+
+          <div class="analysis-grid benchmark-grid">
+            <article class="panel benchmark-panel" aria-labelledby="benchmark-cost-title">
+              <div class="panel-heading">
+                <div><p class="panel-kicker">VALOR DE AIH · SIH/SUS</p><h3 id="benchmark-cost-title">Procedimentos com maior valor registrado</h3></div>
+                <span class="panel-unit">Top 8</span>
+              </div>
+              <p class="panel-copy">Soma do valor registrado nas AIHs agrupadas por código de procedimento. O valor de AIH não representa o custo real do hospital.</p>
+              <div class="benchmark-bars" id="benchmark-cost-chart"><div class="chart-empty">Aguardando dados…</div></div>
+            </article>
+
+            <article class="panel benchmark-panel" aria-labelledby="benchmark-arrivals-title">
+              <div class="panel-heading">
+                <div><p class="panel-kicker">SIH/SUS · ADMISSÕES</p><h3 id="benchmark-arrivals-title">AIHs por mês de admissão</h3></div>
+                <span class="panel-unit">2025</span>
+              </div>
+              <p class="panel-copy">AIHs agrupadas pelo mês da data de admissão. AIH não equivale sempre a uma internação: continuidades de longa permanência podem gerar registros relacionados.</p>
+              <div class="benchmark-occupancy-chart" id="benchmark-arrivals-chart"><div class="chart-empty">Aguardando dados…</div></div>
+            </article>
+
+            <article class="panel benchmark-panel" aria-labelledby="benchmark-capacity-title">
+              <div class="panel-heading">
+                <div><p class="panel-kicker">CNES · LEITOS SUS</p><h3 id="benchmark-capacity-title">Capacidade cadastrada por mês</h3></div>
+                <span class="panel-unit">Alagoas · 2025</span>
+              </div>
+              <p class="panel-copy">Leitos gerais e de UTI registrados no Cadastro Nacional de Estabelecimentos de Saúde.</p>
+              <div class="benchmark-occupancy-chart" id="benchmark-capacity-chart"><div class="chart-empty">Aguardando dados…</div></div>
+            </article>
+          </div>
+
+          <div class="benchmark-limits">
+            <strong>Limites de interpretação</strong>
+            <p>A extração SIH disponível inclui competências de processamento de janeiro a dezembro de 2025; ela não incorpora revisões posteriores e a coorte de admissões de 2025 pode mudar. A contagem é de AIHs consolidadas, não de episódios de internação: AIHs tipo 5 podem registrar continuidades de uma mesma permanência. Ocupação é apenas um proxy de dias informados em AIH sobre leitos CNES, não um censo de leitos ocupados. Os dados não trazem hora de chegada, capacidade por turno nem setor interno de destino; portanto, não confirmam sobrecarga horária ou espera até leito. A espera exibida é a idade de solicitações ainda pendentes no SISREG em uma extração histórica.</p>
+          </div>
+          <div class="benchmark-sources" aria-label="Fontes públicas">
+            <span>Fontes:</span>
+            <a href="https://www.gov.br/saude/pt-br/acesso-a-informacao/sic/dados-em-transparencia-ativa/saes" target="_blank" rel="noopener noreferrer">SIH/SUS · Ministério da Saúde</a>
+            <a href="https://dadosabertos.saude.gov.br/dataset/hospitais-e-leitos" target="_blank" rel="noopener noreferrer">Leitos · CNES</a>
+            <a href="https://cidadao.saude.al.gov.br/wp-content/uploads/2025/09/Fila-de-Espera-2022-2025-AGOSTO.pdf" target="_blank" rel="noopener noreferrer">Fila SISREG · SESAU/AL</a>
+            <a href="https://wiki.datasus.gov.br/sigtap/index.php/P%C3%A1gina_principal" target="_blank" rel="noopener noreferrer">Procedimentos · SIGTAP/DATASUS</a>
+          </div>
+        </section>
+
         <footer class="page-footer">
           <span>Fonte: SIH/SUS · extração via biblioteca PySUS · transformação local</span>
-          <span>Indicadores descritivos · grupos com menos de 10 internações são ocultados</span>
+          <span>Indicadores descritivos · grupos com menos de 10 AIHs são ocultados</span>
         </footer>
       </main>
     </div>

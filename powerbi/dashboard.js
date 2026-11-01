@@ -1,13 +1,28 @@
 const API = {
   executive: '/api/executive?limit=1000',
   risk: '/api/risk',
+  benchmark: '/api/benchmark',
 };
 const number = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
 const decimal = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 const $ = (id) => document.getElementById(id);
-const state = { executive: [], risks: [], months: [], lastUpdated: null, riskRequest: 0, riskLoading: false, riskError: '' };
+const state = { executive: [], risks: [], months: [], lastUpdated: null, riskRequest: 0, riskLoading: false, riskError: '', benchmark: null, benchmarkLoading: false, benchmarkError: '' };
 const SVG = 'http://www.w3.org/2000/svg';
+const BENCHMARK_COLORS = ['#177b73', '#4f7891', '#c18440', '#6d7da7', '#8b6d91', '#7b8d58'];
+const SIGTAP_DESCRIPTIONS = {
+  '0303010037': 'Tratamento de outras doenças bacterianas',
+  '0303040149': 'Tratamento de AVC agudo',
+  '0303140151': 'Tratamento de pneumonias ou influenza',
+  '0303160063': 'Transtornos respiratórios e cardiovasculares neonatais',
+  '0310010039': 'Parto normal',
+  '0406010587': 'Implante de cardioversor-desfibrilador de câmara dupla',
+  '0406010609': 'Implante de cardioversor-desfibrilador multi-sítio',
+  '0406010935': 'Revascularização miocárdica com circulação extracorpórea',
+  '0411010034': 'Parto cesariano',
+  '0415010012': 'Tratamento com cirurgias múltiplas',
+  '0415020050': 'Procedimentos sequenciais em oncologia',
+};
 
 function element(name, className, text) {
   const node = document.createElement(name);
@@ -94,9 +109,8 @@ function fullMonthLabel(value) {
 
 function availablePeriodLabel() {
   const periods = state.months.map((item) => item.ano_mes).sort((a, b) => a.localeCompare(b));
-  if (!periods.length) return 'sem competências disponíveis';
-  if (periods.length === 1) return fullMonthLabel(periods[0]);
-  return `${fullMonthLabel(periods[0])} a ${fullMonthLabel(periods.at(-1))}`;
+  if (!periods.length) return 'sem competências de admissão em 2025';
+  return 'janeiro a dezembro de 2025';
 }
 
 function selectedPeriodLabel() {
@@ -133,7 +147,7 @@ function configureFilters() {
   const period = $('period-filter');
   const specialty = $('specialty-filter');
   period.replaceChildren();
-  appendOption(period, 'all', 'Todos os meses de admissão');
+  appendOption(period, 'all', 'Ano completo · jan–dez/2025');
   state.months.forEach((item) => appendOption(period, item.ano_mes, monthLabel(item.ano_mes)));
   period.value = 'all';
 
@@ -386,7 +400,8 @@ function changeSelection() {
 }
 $('period-filter').addEventListener('change', changeSelection);
 $('specialty-filter').addEventListener('change', changeSelection);
-$('refresh-button').addEventListener('click', loadDashboard);
+$('refresh-button').addEventListener('click', refreshDashboard);
+$('benchmark-period').addEventListener('change', () => loadBenchmark());
 $('logout-button').addEventListener('click', async () => {
   $('logout-button').disabled = true;
   try {
@@ -396,4 +411,301 @@ $('logout-button').addEventListener('click', async () => {
   }
 });
 
-loadDashboard();
+function benchmarkRows() {
+  if (!state.benchmark) return [];
+  const period = $('benchmark-period').value;
+  return state.benchmark.summary.filter((row) =>
+    period === 'all' || row.ano_mes === period);
+}
+
+function configureBenchmarkFilters() {
+  const { summary } = state.benchmark;
+  const period = $('benchmark-period');
+  period.replaceChildren();
+  appendOption(period, 'all', 'Ano completo · jan–dez/2025');
+  [...new Set(summary.map((row) => row.ano_mes).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b))
+    .forEach((month) => appendOption(period, month, monthLabel(month)));
+  period.value = 'all';
+  period.disabled = false;
+}
+
+function setBenchmarkNotice(message, kind = 'ready') {
+  $('benchmark-notice').dataset.state = kind;
+  $('benchmark-status-text').textContent = message;
+}
+
+function benchmarkLabelForPeriod() {
+  const period = $('benchmark-period').value;
+  if (period !== 'all') return fullMonthLabel(period);
+  return 'jan–dez/2025';
+}
+
+function renderBenchmarkMetadata() {
+  const manifest = Array.isArray(state.benchmark?.meta?.datasetManifest)
+    ? state.benchmark.meta.datasetManifest
+    : [];
+  const bySource = new Map(manifest.map((item) => [item.source_key, item]));
+  const dateLabel = (value) => {
+    if (!value) return 'sem data';
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime())
+      ? 'sem data'
+      : new Intl.DateTimeFormat('pt-BR', {
+        day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC',
+      }).format(parsed);
+  };
+  const loadDateLabel = (value) => {
+    const parsed = value ? new Date(value) : null;
+    return parsed && !Number.isNaN(parsed.getTime())
+      ? new Intl.DateTimeFormat('pt-BR', {
+      dateStyle: 'short', timeStyle: 'short', timeZone: 'UTC',
+      }).format(parsed)
+      : 'sem data';
+  };
+  const segments = [
+    ['sih_sus', 'SIH'], ['cnes', 'CNES'], ['sisreg', 'SISREG'],
+  ].flatMap(([key, label]) => {
+    const item = bySource.get(key);
+    if (!item) return [];
+    return [`${label} até ${dateLabel(item.data_through || item.coverage_end)} · carga ${loadDateLabel(item.loaded_at_utc)} UTC`];
+  });
+  $('benchmark-meta').textContent = segments.length
+    ? segments.join(' · ')
+    : 'Manifesto da carga indisponível · SISREG extraído em 10/08/2025';
+  $('benchmark-meta').title = manifest.map((item) =>
+    `${item.source_label}: cobertura ${dateLabel(item.coverage_start)} a ${dateLabel(item.coverage_end)}; `
+    + `${number.format(Number(item.source_record_count) || 0)} registros de origem; `
+    + `${number.format(Number(item.aggregate_row_count) || 0)} linhas agregadas.`
+  ).join(' | ');
+}
+
+function renderBenchmarkMetrics(rows) {
+  const volume = rows.reduce((sum, row) => sum + (Number(row.volume_aih) || 0), 0);
+  const stay = volume && rows.every((row) => isKnownNumber(row.dias_permanencia))
+    ? rows.reduce((sum, row) => sum + Number(row.dias_permanencia), 0) / volume
+    : null;
+  const completeAmount = rows.length > 0 && rows.every((row) => isKnownNumber(row.valor_aih_total));
+  const amount = completeAmount ? rows.reduce((sum, row) => sum + Number(row.valor_aih_total), 0) : null;
+  $('benchmark-volume').textContent = rows.length ? number.format(volume) : '—';
+  $('benchmark-wait').textContent = stay === null ? '—' : `${decimal.format(stay)} d`;
+  $('benchmark-cost').textContent = amount === null ? '—' : currency.format(amount);
+
+  const period = $('benchmark-period').value;
+  const occupancy = state.benchmark.occupancy.filter((row) => period === 'all' || row.ano_mes === period);
+  const patientDays = occupancy.reduce((sum, row) => sum + Number(row.dias_paciente_sih || 0), 0);
+  const bedDays = occupancy.reduce((sum, row) => sum + Number(row.leitos_dia_disponiveis || 0), 0);
+  const rate = bedDays ? patientDays * 100 / bedDays : null;
+  const averageBeds = occupancy.length
+    ? occupancy.reduce((sum, row) => sum + Number(row.leitos_sus_cnes || 0), 0) / occupancy.length
+    : null;
+  $('benchmark-occupancy').textContent = rate === null ? '—' : `${decimal.format(rate)}%`;
+  $('benchmark-occupancy-note').textContent = averageBeds === null
+    ? 'Proxy SIH/CNES; sem capacidade publicada'
+    : `${number.format(Math.round(averageBeds))} leitos SUS médios · proxy SIH/CNES`;
+}
+
+function renderBenchmarkWait() {
+  const host = $('benchmark-wait-chart');
+  host.replaceChildren();
+  const sorted = [...(state.benchmark?.waiting || [])]
+    .sort((a, b) => Number(b.espera_p90_dias) - Number(a.espera_p90_dias))
+    .slice(0, 8);
+  if (!sorted.length) {
+    host.append(element('div', 'chart-empty', 'Não há grupos SISREG disponíveis para esta extração.'));
+    return;
+  }
+  const maximum = Math.max(1, ...sorted.map((row) => Number(row.espera_p90_dias) || 0));
+  sorted.forEach((row) => {
+    const line = element('div', 'benchmark-bar-row');
+    const name = element('span', 'benchmark-bar-name', row.procedimento);
+    name.title = `${row.procedimento} · ${number.format(Number(row.solicitacoes_pendentes))} solicitações pendentes · mediana ${number.format(Number(row.espera_mediana_dias))} dias`;
+    const track = element('span', 'benchmark-bar-track');
+    const fill = element('span', 'benchmark-bar-fill');
+    fill.style.width = `${Math.max(2, Number(row.espera_p90_dias) / maximum * 100)}%`;
+    track.append(fill);
+    line.append(name, track, element('span', 'benchmark-bar-value', `${number.format(Number(row.espera_p90_dias))} d`));
+    host.append(line);
+  });
+  host.append(element('div', 'rank-foot', 'P90 da idade das solicitações ainda pendentes · passe o cursor para ver volume e mediana.'));
+}
+
+function renderMonthlyLineChart(hostId, rows, field, chartTitle, unit, color, minimumMaximum = 1) {
+  const target = $(hostId);
+  target.replaceChildren();
+  const points = [...rows].sort((a, b) => a.ano_mes.localeCompare(b.ano_mes));
+  if (!points.length) {
+    target.append(element('div', 'chart-empty', 'Sem observações para o período.'));
+    return;
+  }
+  const width = 760, height = 230, left = 48, right = 14, top = 13, bottom = 35;
+  const plotW = width - left - right, plotH = height - top - bottom;
+  const maxRaw = Math.max(minimumMaximum, ...points.map((row) => Number(row[field]) || 0));
+  const max = Math.ceil(maxRaw / 4) * 4;
+  const chart = svgNode('svg', { viewBox: `0 0 ${width} ${height}`, class: 'benchmark-svg', role: 'img', 'aria-label': chartTitle });
+  chart.append(svgNode('title', {}, chartTitle));
+  for (let line = 0; line <= 4; line += 1) {
+    const y = top + plotH * line / 4;
+    const label = max * (1 - line / 4);
+    chart.append(svgNode('line', { x1: left, y1: y, x2: width - right, y2: y, class: 'grid-line' }));
+    chart.append(svgNode('text', { x: left - 7, y: y + 3, 'text-anchor': 'end', class: 'axis-label' }, `${number.format(label)}${unit}`));
+  }
+  const coords = points.map((row, index) => ({
+    ...row,
+    value: Number(row[field]) || 0,
+    x: points.length > 1 ? left + plotW * index / (points.length - 1) : left + plotW / 2,
+  })).map((point) => ({ ...point, y: top + plotH - point.value / max * plotH }));
+  const path = coords.map((point, index) => `${index ? 'L' : 'M'} ${point.x} ${point.y}`).join(' ');
+  chart.append(svgNode('path', { d: path, class: 'benchmark-series-line', stroke: color }));
+  coords.forEach((point, index) => {
+    const circle = svgNode('circle', { cx: point.x, cy: point.y, r: index === coords.length - 1 ? 4 : 3.2, class: 'benchmark-series-point', fill: color });
+    circle.append(svgNode('title', {}, `${fullMonthLabel(point.ano_mes)}: ${decimal.format(point.value)}${unit}`));
+    chart.append(circle);
+    chart.append(svgNode('text', { x: point.x, y: height - 9, 'text-anchor': 'middle', class: 'axis-label' }, monthLabel(point.ano_mes)));
+  });
+  target.append(chart);
+}
+
+function renderBenchmarkOccupancy() {
+  const rows = state.benchmark?.occupancy || [];
+  renderMonthlyLineChart(
+    'benchmark-occupancy-chart', rows, 'ocupacao_estimada_pct',
+    'Ocupação estimada mensal em Alagoas em 2025', '%', '#177b73', 100,
+  );
+}
+
+function renderBenchmarkCosts() {
+  const host = $('benchmark-cost-chart');
+  host.replaceChildren();
+  const rows = [...(state.benchmark?.procedures || [])]
+    .filter((row) => isKnownNumber(row.valor_aih_total))
+    .sort((a, b) => Number(b.valor_aih_total) - Number(a.valor_aih_total));
+  const top = rows.slice(0, 8);
+  if (!top.length) {
+    host.append(element('div', 'chart-empty', 'Sem valores de AIH disponíveis para este período.'));
+    return;
+  }
+  const maximum = Math.max(1, ...top.map((row) => Number(row.valor_aih_total) || 0));
+  top.forEach((row) => {
+    const line = element('div', 'benchmark-bar-row');
+    const procedureName = SIGTAP_DESCRIPTIONS[row.id_procedimento] || `SIGTAP ${row.id_procedimento}`;
+    const label = element('span', 'benchmark-bar-name', procedureName);
+    label.title = `${row.id_procedimento} · ${procedureName} · ${number.format(Number(row.volume_aih))} AIHs`;
+    const track = element('span', 'benchmark-bar-track');
+    const fill = element('span', 'benchmark-bar-fill');
+    fill.style.width = `${Math.max(2, Number(row.valor_aih_total) / maximum * 100)}%`;
+    track.append(fill);
+    const value = element('span', 'benchmark-bar-value', currency.format(Number(row.valor_aih_total)));
+    line.append(label, track, value);
+    host.append(line);
+  });
+  host.append(element('div', 'rank-foot', `${number.format(rows.length)} códigos SIGTAP com AIH registrada · valor total do período.`));
+}
+
+function renderBenchmarkArrivals() {
+  const host = $('benchmark-arrivals-chart');
+  const rows = state.benchmark?.summary || [];
+  renderMonthlyLineChart(
+    'benchmark-arrivals-chart', rows, 'volume_aih',
+    'AIHs por mês de admissão em Alagoas em 2025', '', '#4f7891', 1,
+  );
+}
+
+function renderBenchmarkCapacity() {
+  const host = $('benchmark-capacity-chart');
+  host.replaceChildren();
+  const rows = [...(state.benchmark?.capacity || [])].sort((a, b) => a.ano_mes.localeCompare(b.ano_mes));
+  if (!rows.length) {
+    host.append(element('div', 'chart-empty', 'Sem competências CNES disponíveis.'));
+    return;
+  }
+  const maxTotal = Math.max(1, ...rows.map((row) => Number(row.total_leitos_sus) || 0));
+  rows.forEach((row) => {
+    const general = Number(row.leitos_gerais_sus) || 0;
+    const icu = Number(row.leitos_uti_sus) || 0;
+    const total = Number(row.total_leitos_sus) || general + icu;
+    const line = element('div', 'benchmark-cost-row');
+    line.append(element('span', 'benchmark-bar-name', monthLabel(row.ano_mes)));
+    const track = element('span', 'benchmark-stacked-track');
+    track.style.setProperty('--benchmark-relative-width', `${Math.max(2, total / maxTotal * 100)}%`);
+    const generalSegment = element('i', 'cost-hospital');
+    generalSegment.style.width = `${total ? general / total * 100 : 0}%`;
+    const icuSegment = element('i', 'cost-opme');
+    icuSegment.style.width = `${total ? icu / total * 100 : 0}%`;
+    track.append(generalSegment, icuSegment);
+    const value = element('span', 'benchmark-bar-value', number.format(total));
+    line.title = `${monthLabel(row.ano_mes)}: ${number.format(general)} leitos gerais e ${number.format(icu)} leitos de UTI`;
+    line.append(track, value);
+    host.append(line);
+  });
+  const legend = element('div', 'benchmark-legend');
+  [['cost-hospital', 'Leitos gerais SUS'], ['cost-opme', 'UTI SUS']].forEach(([className, label]) => {
+    const item = element('span');
+    const swatch = element('i', className);
+    item.append(swatch, document.createTextNode(label));
+    legend.append(item);
+  });
+  host.append(legend);
+}
+
+function renderBenchmark() {
+  if (!state.benchmark) return;
+  const rows = benchmarkRows();
+  renderBenchmarkMetrics(rows);
+  renderBenchmarkWait();
+  renderBenchmarkOccupancy();
+  renderBenchmarkCosts();
+  renderBenchmarkArrivals();
+  renderBenchmarkCapacity();
+  renderBenchmarkMetadata();
+  const manifestNote = state.benchmark.meta.manifestUnavailable
+    ? ' Proveniência da carga indisponível.'
+    : '';
+  if (state.benchmark.meta.sihFallback) setBenchmarkNotice(
+    `Exibindo agregados SIH/SUS de 2025: o MySQL ainda não retornou esses dados.${state.benchmark.meta.complementaryDataIncomplete ? ' Algumas fontes complementares do banco estão indisponíveis.' : ' CNES e SISREG seguem consultados no banco.'}${manifestNote}`,
+    'warning',
+  );
+  else if (!rows.length) setBenchmarkNotice(`Sem AIHs de admissões neste período.${manifestNote}`, manifestNote ? 'warning' : 'ready');
+  else setBenchmarkNotice(
+    `Recorte por admissão: ${benchmarkLabelForPeriod()} · SIH processado até competência 12/2025; a coorte pode receber atualizações posteriores.${manifestNote}`,
+    manifestNote ? 'warning' : 'ready',
+  );
+}
+
+async function loadBenchmark() {
+  const request = (state.benchmarkRequest || 0) + 1;
+  state.benchmarkRequest = request;
+  state.benchmarkLoading = true;
+  const period = $('benchmark-period').value || 'all';
+  setBenchmarkNotice('Consultando agregados públicos do SUS…', 'loading');
+  try {
+    const benchmark = await getJson(`${API.benchmark}?period=${encodeURIComponent(period)}`);
+    if (request !== state.benchmarkRequest) return;
+    state.benchmark = {
+      summary: Array.isArray(benchmark.summary) ? benchmark.summary : [],
+      procedures: Array.isArray(benchmark.procedures) ? benchmark.procedures : [],
+      capacity: Array.isArray(benchmark.capacity) ? benchmark.capacity : [],
+      occupancy: Array.isArray(benchmark.occupancy) ? benchmark.occupancy : [],
+      waiting: Array.isArray(benchmark.waiting) ? benchmark.waiting : [],
+      meta: benchmark.meta || {},
+    };
+    state.benchmarkError = '';
+    if ($('benchmark-period').disabled) configureBenchmarkFilters();
+    renderBenchmark();
+  } catch (error) {
+    if (request !== state.benchmarkRequest) return;
+    state.benchmarkError = error.access ? 'Entre novamente para consultar os dados públicos.' : (error.message || 'Falha ao carregar os dados públicos.');
+    setBenchmarkNotice(state.benchmarkError, 'error');
+    ['benchmark-volume', 'benchmark-wait', 'benchmark-cost', 'benchmark-occupancy'].forEach((id) => { $(id).textContent = '—'; });
+    ['benchmark-wait-chart', 'benchmark-occupancy-chart', 'benchmark-cost-chart', 'benchmark-arrivals-chart', 'benchmark-capacity-chart']
+      .forEach((id) => { $(id).replaceChildren(element('div', 'chart-empty', 'Dados do benchmark indisponíveis.')); });
+  } finally {
+    if (request === state.benchmarkRequest) state.benchmarkLoading = false;
+  }
+}
+
+async function refreshDashboard() {
+  await Promise.all([loadDashboard(), loadBenchmark()]);
+}
+
+refreshDashboard();

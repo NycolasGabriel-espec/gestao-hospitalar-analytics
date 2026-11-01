@@ -21,6 +21,9 @@ venv/
 /data/raw/
 /data/processed/
 /data/cache/
+# Benchmark sintético gerado localmente; os arquivos podem ser recriados pelo script.
+/data/benchmark/
+/data/public_sus/
 
 # DuckDB lock/wal temporários
 *.duckdb.wal
