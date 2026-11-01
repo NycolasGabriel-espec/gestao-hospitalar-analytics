@@ -12,6 +12,7 @@ O projeto trata dados de saúde como dados pessoais sensíveis. As mudanças té
 - A transformação SIH/SUS usa HMAC-SHA-256 com segredo local e remove número AIH, idade exata e município dos artefatos processados.
 - A readmissão fica `NULL` nos dados reais quando a fonte não permite reconhecer a mesma pessoa. O benchmark mantém apenas valores simulados.
 - A carga remota exige TLS validado e uma conta ETL dedicada. A substituição completa dos dados requer duas flags explícitas.
+- O login executa scrypt também para e-mails inexistentes e responde da mesma forma para qualquer credencial sem acesso; a CSP limita scripts a recursos próprios e blocos inline identificados por hash.
 - Arquivos brutos e processados ficam fora do Git. Mantenha volumes locais criptografados e controle também os backups.
 - A Vercel envia cabeçalhos de segurança; APIs respondem com `Cache-Control: no-store`.
 

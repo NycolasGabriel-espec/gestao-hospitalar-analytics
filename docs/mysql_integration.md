@@ -24,6 +24,8 @@ As views usam `SQL SECURITY DEFINER`. O usuário que executar o setup precisa co
 
 O comando `npm run mysql:setup` automatiza esquema e grants. Ele lê `.env.mysql-admin.json` local com `adminUrl` e `ca`, gera senhas aleatórias para as três contas e salva as URLs em `.env.mysql-runtime.json`. Esses arquivos são ignorados pelo Git e recebem permissão 600. Se `.env.mysql-account.json` existir com `email` e `passwordHash` scrypt, a conta do dashboard também é aplicada; caso contrário, use o bootstrap interativo da seção 4.
 
+Para uma instância já em uso, `npm run mysql:benchmark:setup` aplica as tabelas do cenário sintético local. A integração de dados públicos da Vercel usa `npm run mysql:public-sus:setup`, que aplica `sql/07_public_sus_mysql.sql` e os grants. `npm run mysql:panorama-2025:setup` aplica `sql/08_panorama_2025_mysql.sql` para expor o ano no detalhe clínico e manter o Panorama restrito a 2025. As migrações são aditivas e não modificam fatos SIH/SUS.
+
 ## 3. Configurar a conexão local
 
 Copie `.env.example` para `.env`. Configure `MYSQL_URL`, `MYSQL_TLS=true` e a CA fornecida pelo serviço quando ela não estiver no conjunto de CAs confiáveis do sistema. O cliente Node recebe o conteúdo PEM em `MYSQL_SSL_CA`; o Python recebe o caminho do PEM em `MYSQL_SSL_CA_FILE`.
@@ -42,18 +44,29 @@ O script solicita a senha sem exibi-la, gera um hash scrypt e habilita a conta. 
 
 ## 5. Carregar os dados
 
-Os arquivos em `data/processed/` ficam fora do Git. Gere o benchmark sintético ou execute a extração e transformação de uma fonte autorizada. Para carregar, use a conexão `analytics_loader` no `.env` local:
+Os arquivos em `data/processed/` ficam fora do Git. Para carregar o modelo dimensional, use a conexão `analytics_loader` no `.env` local:
 
 ```bash
 python3 src/load_to_mysql.py --dry-run
 python3 src/load_to_mysql.py
 ```
 
-Para dados reais, execute primeiro `src/extract_sih_sus.py` e `src/transform_star_schema.py`, mantendo o mesmo segredo `PATIENT_DATA_HMAC_KEY` nas recargas. O carregador usa upsert e respeita a ordem das chaves estrangeiras. Uma substituição completa exige backup e as duas opções:
+Para SIH/SUS, execute primeiro `src/extract_sih_sus.py` e `src/transform_star_schema.py`, mantendo o mesmo segredo `PATIENT_DATA_HMAC_KEY` nas recargas. O carregador usa upsert e respeita a ordem das chaves estrangeiras. Uma substituição completa exige backup e as duas opções:
 
 ```bash
 python3 src/load_to_mysql.py --truncate --confirm-truncate
 ```
+
+Para integrar os dados públicos do painel da Vercel, rode a migração e o ETL agregado:
+
+```bash
+npm run mysql:public-sus:setup
+npm run mysql:panorama-2025:setup
+.venv/bin/python src/load_public_sus_to_mysql.py --dry-run
+.venv/bin/python src/load_public_sus_to_mysql.py
+```
+
+O carregador usa somente a conta local `analytics_loader`, valida TLS e substitui atomicamente as três tabelas de agregados públicos. As competências CNES são somadas por mês e UF; a ocupação é calculada como aproximação a partir de dias de permanência SIH e leitos CNES. Do relatório SISREG estadual, o carregador guarda apenas estatísticas por procedimento com pelo menos 30 solicitações; identificadores de solicitação e CNS não são gravados. As cópias locais ficam em `data/public_sus/`, fora do Git.
 
 ## 6. Configurar e publicar na Vercel
 
@@ -66,6 +79,8 @@ Configure as variáveis do projeto Vercel nos ambientes necessários:
 - `AUTH_RATE_LIMIT_SECRET`: segredo aleatório com pelo menos 32 caracteres.
 
 Mantenha a senha administrativa, a conta ETL e a senha do usuário do dashboard fora das variáveis de produção. Depois de preparar banco, conta autorizada e carga inicial, publique a versão MySQL. Confirme a saúde da API e o login antes de concluir a migração.
+
+O painel público usa a mesma `MYSQL_URL` limitada da aplicação: `GET /api/benchmark` exige sessão autorizada e lê as views agregadas SIH/SUS e as tabelas CNES/SISREG. Não são necessárias novas variáveis Vercel. A seção “Benchmark operacional hospitalar” mostra internações, permanência, valor AIH, ocupação estimada, fila regulatória por procedimento e capacidade CNES; fontes e limitações ficam visíveis no próprio dashboard e em [public_sus_dashboard.md](public_sus_dashboard.md).
 
 Sem a instância e as variáveis de conexão, a versão MySQL não consegue autenticar. As views ficam vazias até uma carga dos arquivos processados. A conta anterior precisa ser habilitada no novo banco com o mesmo e-mail autorizado.
 
