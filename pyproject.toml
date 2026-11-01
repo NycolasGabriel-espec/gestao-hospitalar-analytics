@@ -1,0 +1,27 @@
+[project]
+name = "gestao-hospitalar-analytics"
+version = "0.1.0"
+description = "ETL e dashboards analíticos de gestão hospitalar"
+license = "MIT"
+requires-python = ">=3.11,<3.15"
+dependencies = [
+    "pysus>=2.11.0",
+    "pandas>=2.2.0",
+    "duckdb>=1.1.0",
+    "pyarrow>=15.0.0",
+    "fastparquet>=2024.2.0",
+    "sqlalchemy>=2.0.0",
+    "pymysql>=1.1.1",
+    "python-dotenv>=1.0.0",
+    "requests>=2.34.0,<3",
+    "pymupdf>=2.0,<3",
+]
+
+[project.optional-dependencies]
+dashboard = [
+    "streamlit>=1.55",
+    "plotly>=5.24",
+]
+
+[tool.uv]
+package = false
