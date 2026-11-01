@@ -1,4 +1,0 @@
--- As permissões, políticas RLS e views aprovadas ficam em
--- sql/supabase_setup.sql. Este arquivo substitui uma versão antiga que dava
--- SELECT amplo a qualquer usuário authenticated. Execute o setup protegido
--- como uma transação; ele preserva as tabelas, mas atualiza as views e grants.

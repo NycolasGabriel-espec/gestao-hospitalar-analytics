@@ -1,4 +1,4 @@
-import { handleError, parseLimit, queryView, requireAuth, requireGet, sendJson } from '../lib/api/supabase.js';
+import { handleError, parseLimit, queryView, requireAuth, requireGet, sendJson } from '../lib/api/mysql.js';
 
 export default async function handler(req, res) {
   if (!requireGet(req, res)) return;
@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   try {
     const data = await queryView('vw_painel_executivo_mensal', {
       select: 'ano_mes,ano,mes,nome_mes,especialidade,volume_internacoes,receita_total,custo_total,custo_opme,margem_contribuicao,margem_pct,tmp_medio,taxa_readmissao_pct,taxa_mortalidade_pct',
-      filters, limit, accessToken: auth.accessToken,
+      filters, limit,
     });
     sendJson(res, 200, { data, count: data.length, limit });
   } catch (error) { handleError(res, error); }

@@ -1,11 +1,15 @@
+import { randomBytes } from 'node:crypto';
 import {
-  getSupabaseConfig,
+  getPool,
+  hashPassword,
+  hashSessionToken,
   isSameOriginRequest,
-  readJsonBody,
   requireAuth,
   requirePost,
+  readJsonBody,
   sendJson,
-} from '../../lib/api/supabase.js';
+  setSessionCookie,
+} from '../../lib/api/mysql.js';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'private, no-store');
@@ -21,24 +25,26 @@ export default async function handler(req, res) {
   const session = await requireAuth(req, res);
   if (!session) return;
 
+  let connection;
   try {
-    const { url, key } = getSupabaseConfig();
-    const response = await fetch(`${url}/auth/v1/user`, {
-      method: 'PUT',
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${session.accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ password }),
-      signal: AbortSignal.timeout(7000),
-      redirect: 'error',
-    });
-    if (!response.ok) {
-      return sendJson(res, 400, { error: 'Não foi possível atualizar a senha. Solicite um novo link de recuperação.' });
-    }
+    const passwordHash = await hashPassword(password);
+    const token = randomBytes(32).toString('base64url');
+    const tokenHash = hashSessionToken(token);
+    connection = await getPool().getConnection();
+    await connection.beginTransaction();
+    await connection.execute('UPDATE app_users SET password_hash = ? WHERE id = ?', [passwordHash, session.user.id]);
+    await connection.execute('DELETE FROM auth_sessions WHERE user_id = ?', [session.user.id]);
+    await connection.execute(
+      'INSERT INTO auth_sessions (session_hash, user_id, expires_at) VALUES (?, ?, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 12 HOUR))',
+      [tokenHash, session.user.id],
+    );
+    await connection.commit();
+    setSessionCookie(res, token);
     return sendJson(res, 200, { status: 'ok' });
   } catch {
+    if (connection) await connection.rollback().catch(() => {});
     return sendJson(res, 502, { error: 'Não foi possível atualizar a senha agora.' });
+  } finally {
+    connection?.release();
   }
 }

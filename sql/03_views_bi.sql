@@ -1,4 +1,0 @@
--- Views analíticas consolidadas em sql/supabase_setup.sql.
--- Este arquivo foi esvaziado porque a versão anterior expunha uma linha por
--- internação e dependia de permissões de tabela amplas. Não crie views fora do
--- setup protegido: as views atuais exigem conta aprovada e suprimem grupos < 10.

@@ -256,8 +256,8 @@ function render() {
   renderRanking(rows);
   renderOutcomes(rows);
   renderDiagnoses();
-  if (!state.executive.length) setStatus('Sem dados publicados. Execute a extração PySUS, a transformação local e a carga autorizada para o Supabase.', 'error');
-  else setStatus(`${number.format(rows.length)} grupos publicados na seleção. Dados agregados do SIH/SUS processados pelo pipeline PySUS.`);
+  if (!state.executive.length) setStatus('Sem dados publicados. Execute a extração PySUS, a transformação local e a carga autorizada para o MySQL.', 'error');
+  else setStatus(`${number.format(rows.length)} grupos publicados na seleção. SIH/SUS · AL · competências jan–dez/2025 · agrupamento por admissão.`);
 }
 
 async function loadDashboard() {

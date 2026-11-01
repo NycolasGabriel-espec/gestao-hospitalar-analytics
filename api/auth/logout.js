@@ -1,31 +1,26 @@
 import {
-  getSessionTokens,
-  getSupabaseConfig,
+  clearSessionCookie,
+  getPool,
+  getSessionToken,
+  hashSessionToken,
   isSameOriginRequest,
   requirePost,
-  clearSessionCookies,
   sendJson,
-} from '../../lib/api/supabase.js';
+} from '../../lib/api/mysql.js';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'private, no-store');
   if (!requirePost(req, res)) return;
   if (!isSameOriginRequest(req)) return sendJson(res, 403, { error: 'Requisição não autorizada.' });
 
-  const { accessToken } = getSessionTokens(req);
-  try {
-    if (accessToken) {
-      const { url, key } = getSupabaseConfig();
-      await fetch(`${url}/auth/v1/logout`, {
-        method: 'POST',
-        headers: { apikey: key, Authorization: `Bearer ${accessToken}` },
-        signal: AbortSignal.timeout(5000),
-        redirect: 'error',
-      });
+  const token = getSessionToken(req);
+  if (token) {
+    try {
+      await getPool().execute('DELETE FROM auth_sessions WHERE session_hash = ?', [hashSessionToken(token)]);
+    } catch {
+      // A limpeza do cookie local deve ocorrer mesmo se a conexão MySQL estiver indisponível.
     }
-  } catch {
-    // Clearing browser cookies is still necessary if the upstream sign-out is unavailable.
   }
-  clearSessionCookies(res);
+  clearSessionCookie(res);
   return sendJson(res, 200, { status: 'ok' });
 }

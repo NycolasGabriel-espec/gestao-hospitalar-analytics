@@ -1,4 +1,4 @@
-import { handleError, parseLimit, queryView, requireAuth, requireGet, sendJson } from '../lib/api/supabase.js';
+import { handleError, parseLimit, queryView, requireAuth, requireGet, sendJson } from '../lib/api/mysql.js';
 
 export default async function handler(req, res) {
   if (!requireGet(req, res)) return;
@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   try {
     const data = await queryView('vw_eficiencia_leitos_setor', {
       select: 'ano_mes,id_leito,tipo_acomodacao,setor_hospitalar,leitos_operacionais,total_admissoes,dias_permanencia_coorte,dias_uti_reportados_coorte,leitos_dia_teoricos,taxa_ocupacao_pct,admissoes_por_leito_aproximado',
-      filters, limit, accessToken: auth.accessToken,
+      filters, limit,
     });
     sendJson(res, 200, { data, count: data.length, limit });
   } catch (error) { handleError(res, error); }

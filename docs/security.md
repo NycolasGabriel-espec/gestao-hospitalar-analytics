@@ -4,29 +4,29 @@ O projeto trata dados de saúde como dados pessoais sensíveis. As mudanças té
 
 ## Controles implementados
 
-- As tabelas do projeto mantêm RLS e não são concedidas diretamente a `anon` ou `authenticated`.
-- O setup revoga grants padrão para novas tabelas e sequências criadas por `postgres` em `public`; qualquer objeto futuro precisa de grants explícitos e revisão de RLS.
-- As rotas exigem uma conta Supabase aprovada em `app_metadata.hospital_analytics_access = true`; a autorização não usa `user_metadata`.
-- O acesso usa links mágicos de uso único enviados apenas a contas existentes (`create_user=false`); não há senha nem cadastro público. As sessões do navegador ficam em cookies `HttpOnly`, `SameSite=Strict` e `Secure` em produção. As ações de sessão exigem origem igual à aplicação.
-- As views não retornam identificadores individuais e suprimem grupos com menos de 10 internações; esse limiar reduz exposição, mas não garante anonimização contra cruzamentos ou ataques por diferença.
-- A transformação SIH/SUS usa HMAC-SHA-256 com segredo local, remove número AIH, idade exata e município dos artefatos processados.
-- A taxa de readmissão fica `NULL` nos dados reais quando a fonte não permite reconhecer a mesma pessoa. O benchmark mantém apenas valores simulados.
-- Arquivos brutos e processados ficam fora do Git. A carga exige `service_role` somente em processo local e a carga destrutiva requer duas flags explícitas.
-- Os diretórios locais de dados são criados com permissão de proprietário apenas em sistemas POSIX; mantenha volumes criptografados e controle também os backups.
+- MySQL mantém os dados em tabelas InnoDB e expõe à aplicação apenas views agregadas protegidas com `SQL SECURITY DEFINER`.
+- A aplicação usa uma conta MySQL restrita: leitura das views, leitura limitada de `app_users`, atualização de `password_hash` e operações necessárias em sessões e tentativas de login. Não usa `root` nem lê tabelas clínicas diretamente.
+- A autenticação usa senha derivada com scrypt, sessão aleatória de 256 bits com apenas o hash SHA-256 persistido, cookie `HttpOnly`, `SameSite=Strict` e `Secure` em produção.
+- O login limita tentativas por e-mail e IP; esses valores são armazenados como HMAC, com segredo dedicado.
+- As views analíticas não retornam identificadores individuais e ocultam grupos com menos de 10 internações. Esse limiar reduz exposição, mas não garante anonimização contra cruzamentos ou ataques por diferença.
+- A transformação SIH/SUS usa HMAC-SHA-256 com segredo local e remove número AIH, idade exata e município dos artefatos processados.
+- A readmissão fica `NULL` nos dados reais quando a fonte não permite reconhecer a mesma pessoa. O benchmark mantém apenas valores simulados.
+- A carga remota exige TLS validado e uma conta ETL dedicada. A substituição completa dos dados requer duas flags explícitas.
+- Arquivos brutos e processados ficam fora do Git. Mantenha volumes locais criptografados e controle também os backups.
 - A Vercel envia cabeçalhos de segurança; APIs respondem com `Cache-Control: no-store`.
 
 Pseudonimização não é anonimização. Os arquivos processados de SIH/SUS continuam contendo informação clínica por internação e devem permanecer em ambiente controlado.
 
 ## Configuração necessária antes de produção
 
-1. Desative cadastro público no Supabase Auth e limite os redirecionamentos ao domínio da aplicação.
-2. Conceda `hospital_analytics_access` apenas por fluxo administrativo confiável. O login deste protótipo não implementa desafio MFA; não declare MFA obrigatório até que o fluxo de step-up e uma regra AAL2 estejam impostos nas views/API.
-3. Mantenha `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL` e `PATIENT_DATA_HMAC_KEY` fora do navegador, do Git e dos logs. Proteja e faça backup do segredo HMAC; alterá-lo requer recarga planejada dos dados.
-4. Para Power BI, use `powerbi_reader` com acesso somente às views, nunca a senha mestre `postgres`.
-5. Antes de substituir uma base antiga, faça backup. O setup altera permissões e colunas, mas não recalcula identificadores nem apaga linhas antigas; limpe e recarregue os dados com HMAC antes de habilitar usuários. Se dados reais ou segredos já foram commitados, eles podem continuar no histórico Git e exigem tratamento próprio.
-6. A organização deve definir finalidade e base legal, retenção, canal para titulares, responsáveis e contratos com operadores. A aplicação não determina esses elementos organizacionais.
-7. Configure limites de tentativa e monitoramento do Supabase Auth, restrinja origens/redirects e revise periodicamente usuários aprovados e acessos à base.
+1. Execute `sql/mysql_setup.sql` como administrador do banco; crie depois as contas separadas descritas em `sql/mysql_grants.sql`.
+2. Configure a Vercel com `MYSQL_URL` da conta `dashboard_app`, `MYSQL_TLS=true`, a CA validada em `MYSQL_SSL_CA` quando necessária, `MYSQL_CONNECTION_LIMIT=2` e `AUTH_RATE_LIMIT_SECRET` aleatório com pelo menos 32 caracteres.
+3. Crie ou atualize a conta autorizada usando o script interativo local. O bootstrap não deve rodar na Vercel nem usar a URL da conta da aplicação.
+4. Guarde e faça backup de `PATIENT_DATA_HMAC_KEY`; alterá-lo requer recarga planejada dos dados.
+5. Para Power BI, use `powerbi_reader` com `SELECT` somente nas views agregadas.
+6. Antes de substituir dados, faça backup. Execute `src/load_to_mysql.py --truncate --confirm-truncate` apenas com a role ETL e depois recarregue o conjunto inteiro.
+7. A organização deve definir finalidade e base legal, retenção, canal para titulares, responsáveis e contratos com operadores. A aplicação não determina esses elementos organizacionais.
 
-A [Resolução CD/ANPD nº 15/2024](https://www.gov.br/anpd/pt-br/canais_atendimento/agente-de-tratamento/comunicado-de-incidente-de-seguranca-cis) prevê comunicação de incidente à ANPD e aos titulares no prazo aplicável quando os critérios de risco ou dano relevante forem atendidos; a regra geral é três dias úteis, com prazo em dobro para agentes de pequeno porte que se enquadrem na regulamentação específica. O registro deve ser mantido por pelo menos cinco anos, ressalvadas obrigações adicionais ou regras aplicáveis a entidades públicas. O controlador deve confirmar o prazo aplicável e manter um processo operacional para cumpri-lo.
+A [Resolução CD/ANPD nº 15/2024](https://www.gov.br/anpd/pt-br/canais_atendimento/agente-de-tratamento/comunicado-de-incidente-de-seguranca-cis) prevê comunicação de incidente à ANPD e aos titulares no prazo aplicável quando os critérios de risco ou dano relevante forem atendidos; a regra geral é três dias úteis, com prazo em dobro para agentes de pequeno porte que se enquadrem na regulamentação específica. O controlador deve confirmar o prazo aplicável e manter um processo operacional para cumpri-lo.
 
 Este documento descreve controles do repositório e passos de implantação; não certifica conformidade jurídica nem substitui avaliação do controlador e do encarregado de proteção de dados.

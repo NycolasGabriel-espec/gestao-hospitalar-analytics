@@ -20,11 +20,13 @@ venv/
 # Mantenha-os fora do Git e compartilhe apenas agregações revisadas.
 /data/raw/
 /data/processed/
+/data/cache/
 
 # DuckDB lock/wal temporários
 *.duckdb.wal
 
-# Supabase CLI local
-supabase/.temp/
-supabase/.branches/
 node_modules
+
+# Cache antigo de ferramenta local; contém configurações fora do código da aplicação.
+/supabase/.temp/
+/supabase/.branches/

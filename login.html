@@ -33,15 +33,14 @@
   <main class="auth-card">
     <a class="brand" href="/" aria-label="Hospital Analytics, voltar ao início"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></svg></span><span>hospital <b>analytics</b></span></a>
     <div class="eyebrow">Acesso seguro</div>
-    <h1 id="heading">Entre na sua conta</h1>
-    <p class="auth-intro" id="intro">Informe o e-mail da sua conta autorizada. Enviaremos um link de acesso de uso único.</p>
-    <form id="auth-form" aria-labelledby="heading">
-      <div id="email-field"><label for="email">E-mail</label><input id="email" name="email" type="email" autocomplete="username" maxlength="254" required></div>
-      <div id="password-fields" hidden>
-        <label id="password-label" for="password">Nova senha</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="1024">
-        <div id="confirm-password-field"><label for="confirm-password">Confirme a nova senha</label><input id="confirm-password" name="confirm_password" type="password" autocomplete="new-password" minlength="8" maxlength="1024"></div>
-      </div>
-      <button class="auth-submit" id="submit" type="submit">Enviar link de acesso</button>
+    <h1>Entre na sua conta</h1>
+    <p class="auth-intro">Use o e-mail e a senha da sua conta autorizada para acessar o dashboard.</p>
+    <form id="auth-form">
+      <label for="email">E-mail</label>
+      <input id="email" name="email" type="email" autocomplete="username" maxlength="254" required>
+      <label for="password">Senha</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="1024" required>
+      <button class="auth-submit" id="submit" type="submit">Entrar no dashboard</button>
     </form>
     <div class="message" id="message" role="status" aria-live="polite"></div>
     <a class="back" href="/">Voltar ao início</a>
@@ -50,86 +49,25 @@
     const form = document.querySelector('#auth-form');
     const message = document.querySelector('#message');
     const submit = document.querySelector('#submit');
-    const emailField = document.querySelector('#email-field');
-    const passwordFields = document.querySelector('#password-fields');
-    const confirmPassword = document.querySelector('#confirm-password');
-    const authParams = new URLSearchParams(location.hash.slice(1));
-    const confirmedAccessToken = authParams.get('access_token');
-    const recovery = authParams.get('type') === 'recovery';
 
-    function showPasswordRecovery() {
-      document.querySelector('#heading').textContent = 'Defina sua nova senha';
-      document.querySelector('#intro').textContent = 'Escolha uma senha com pelo menos 8 caracteres.';
-      emailField.hidden = true;
-      passwordFields.hidden = false;
-      confirmPassword.required = true;
-      submit.textContent = 'Salvar nova senha';
-      form.dataset.mode = 'recovery';
-    }
-
-    if (confirmedAccessToken) {
-      history.replaceState(null, '', location.pathname);
-      if (!authParams.get('refresh_token')) {
-        message.textContent = 'Não foi possível concluir a confirmação. Entre com sua conta.';
-      } else {
-      fetch('/api/auth/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          access_token: confirmedAccessToken,
-          refresh_token: authParams.get('refresh_token'),
-          expires_in: Number(authParams.get('expires_in')) || 3600,
-        }),
-      }).then(async (response) => {
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || 'Esta conta não está habilitada para acessar os dados.');
-        if (recovery) {
-          showPasswordRecovery();
-          message.style.color = '#137c70';
-          message.textContent = 'Link confirmado. Agora defina sua nova senha.';
-        } else {
-          location.assign('/powerbi/dashboard_preview.html');
-        }
-      }).catch((error) => { message.textContent = error.message; });
-      }
-    } else if (recovery) {
-      history.replaceState(null, '', location.pathname);
-      message.textContent = 'Link de recuperação inválido ou expirado. Solicite um novo e-mail.';
-    }
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       submit.disabled = true;
       message.textContent = '';
       try {
-        if (form.dataset.mode === 'recovery') {
-          const password = form.password.value;
-          if (password !== confirmPassword.value) throw new Error('As senhas não coincidem.');
-          const response = await fetch('/api/auth/update-password', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password }),
-          });
-          const result = await response.json();
-          if (!response.ok) throw new Error(result.error || 'Não foi possível atualizar a senha.');
-          location.assign('/powerbi/dashboard_preview.html');
-          return;
-        }
-        const email = form.email.value.trim();
-        const response = await fetch('/api/auth/magic-link', {
+        const response = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email }),
+          body: JSON.stringify({ email: form.email.value.trim(), password: form.password.value }),
         });
         const result = await response.json();
-        if (!response.ok) throw new Error(result.error || 'Não foi possível enviar o link agora.');
-        message.style.color = '#137c70';
-        message.textContent = 'Se este e-mail estiver autorizado, enviaremos um link de acesso. Verifique sua caixa de entrada.';
-        submit.textContent = 'Link solicitado';
-        submit.disabled = true;
+        if (!response.ok) throw new Error(result.error || 'Não foi possível entrar. Confira suas credenciais.');
+        location.assign('/powerbi/dashboard_preview.html');
       } catch (error) {
-        message.style.color = '#9a4b32';
         message.textContent = error.message;
-      } finally { submit.disabled = false; }
+      } finally {
+        submit.disabled = false;
+      }
     });
   </script>
 </body>
