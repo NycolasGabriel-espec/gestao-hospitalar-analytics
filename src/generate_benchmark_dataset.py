@@ -7,16 +7,19 @@ Autor: Nycolas Gabriel / Healthcare Analytics
 
 import os
 import random
-from datetime import datetime, timedelta
+import argparse
+from datetime import datetime, time, timedelta
 from pathlib import Path
 import numpy as np
 import pandas as pd
 import duckdb
 
-def generate_benchmark_data(num_admissoes: int = 15000, output_dir: str = "data/processed", seed: int = 42):
+def generate_benchmark_data(num_admissoes: int = 15000, output_dir: str = "data/benchmark", seed: int = 42):
     """
-    Gera base de alta fidelidade simulando um complexo hospitalar de 220 leitos
-    com 12 meses de dados, refletindo a dinâmica financeira de saúde suplementar e SUS.
+    Gera uma base simulada de 220 leitos com chegadas distribuídas ao longo de 2023.
+
+    Espera, horários, custos e desfechos são variáveis artificiais de demonstração.
+    Os arquivos são gravados em data/benchmark para preservar os dados SIH/SUS.
     """
     np.random.seed(seed)
     random.seed(seed)
@@ -96,26 +99,13 @@ def generate_benchmark_data(num_admissoes: int = 15000, output_dir: str = "data/
     
     # 3. Dimensão Setor e Leito
     dim_setor_leito = pd.DataFrame([
-        {"id_leito": "LEITO_UTI_01", "tipo_acomodacao": "UTI Adulto & Crítica", "setor_hospitalar": "Pavilhão Intensivo Central", "leitos_operacionais": 30},
-        {"id_leito": "LEITO_CIR_01", "tipo_acomodacao": "Enfermaria Cirúrgica & PO", "setor_hospitalar": "Bloco Cirúrgico Ala B", "leitos_operacionais": 70},
-        {"id_leito": "LEITO_ENF_01", "tipo_acomodacao": "Enfermaria Clínica Geral", "setor_hospitalar": "Ala de Internação Clínica", "leitos_operacionais": 120}
+        {"id_leito": "LEITO_UTI_01", "tipo_acomodacao": "UTI Adulto & Crítica", "setor_hospitalar": "Pavilhão Intensivo Central", "leitos_operacionais": 50},
+        {"id_leito": "LEITO_CIR_01", "tipo_acomodacao": "Enfermaria Cirúrgica & PO", "setor_hospitalar": "Bloco Cirúrgico Ala B", "leitos_operacionais": 92},
+        {"id_leito": "LEITO_ENF_01", "tipo_acomodacao": "Enfermaria Clínica Geral", "setor_hospitalar": "Ala de Internação Clínica", "leitos_operacionais": 78}
     ])
     
-    # 4. Dimensão Tempo (Ano de 2023 completo)
+    # 4. Calendário da coorte sintética (as datas de internação são concluídas abaixo).
     data_inicio = datetime(2023, 1, 1)
-    datas = [data_inicio + timedelta(days=i) for i in range(365)]
-    dim_tempo = pd.DataFrame({
-        "id_data": [int(d.strftime("%Y%m%d")) for d in datas],
-        "data_completa": [d.date() for d in datas],
-        "ano": [d.year for d in datas],
-        "mes": [d.month for d in datas],
-        "dia": [d.day for d in datas],
-        "nome_mes": [d.strftime("%B") for d in datas],
-        "trimestre": [(d.month - 1) // 3 + 1 for d in datas],
-        "ano_mes": [d.strftime("%Y-%m") for d in datas],
-        "dia_semana": [d.strftime("%A") for d in datas],
-        "eh_fim_semana": [d.weekday() in [5, 6] for d in datas]
-    })
     
     # 5. Pacientes e Admissões
     num_pacientes = int(num_admissoes * 0.72) # Permite readmissões realistas
@@ -167,9 +157,6 @@ def generate_benchmark_data(num_admissoes: int = 15000, output_dir: str = "data/
         proc = procedimentos_catalogo[p_idx]
         cid = map_proc_cid[proc["id"]]
         
-        # Data de admissão distribuída ao longo de 2023
-        dt_adm = data_inicio + timedelta(days=random.randint(0, 350))
-        
         # Tempo de permanência: distribuição log-normal centrada no protocolo
         alvo_tmp = proc["tmp_proto"]
         # Especialidade Ortopedia e Clínica têm maior tendência a atraso de alta
@@ -180,8 +167,6 @@ def generate_benchmark_data(num_admissoes: int = 15000, output_dir: str = "data/
         else:
             dias_perm = max(1, int(np.random.normal(alvo_tmp, 1.2)))
             
-        dt_alta = dt_adm + timedelta(days=dias_perm)
-        
         # Leito e UTI
         if proc["esp"] in ["Cardiologia", "Neurologia"] or proc["nome"].find("Sepse") != -1:
             dias_uti = min(dias_perm, random.randint(1, max(1, dias_perm - 1)))
@@ -192,6 +177,38 @@ def generate_benchmark_data(num_admissoes: int = 15000, output_dir: str = "data/
         else:
             dias_uti = 0
             id_leito = "LEITO_ENF_01"
+
+        if id_leito == "LEITO_UTI_01":
+            id_leito_pos_uti = (
+                "LEITO_CIR_01" if proc["id"] in ["0406010072", "0403010098"] else "LEITO_ENF_01"
+            )
+        else:
+            id_leito_pos_uti = id_leito
+
+        # Chegadas sintéticas ao pronto atendimento, com maior volume diurno.
+        data_chegada = data_inicio + timedelta(days=random.randint(0, 364))
+        horas_pesos = [1, 1, 1, 1, 1, 2, 4, 6, 8, 8, 7, 6, 6, 7, 7, 7, 7, 6, 5, 4, 3, 2, 2, 1]
+        hora_chegada = random.choices(range(24), weights=horas_pesos, k=1)[0]
+        data_hora_chegada = datetime.combine(
+            data_chegada.date(), time(hour=hora_chegada, minute=random.randrange(60))
+        )
+
+        # Espera artificial da chegada até a internação no setor de destino.
+        # Médias por setor e acréscimos em horários concorridos são premissas do benchmark.
+        espera_base_minutos = {
+            "LEITO_UTI_01": 190,
+            "LEITO_CIR_01": 140,
+            "LEITO_ENF_01": 100,
+        }[id_leito]
+        adicional_horario = 35 if 7 <= hora_chegada <= 10 else 20 if 16 <= hora_chegada <= 18 else 0
+        tempo_espera_minutos = max(
+            15,
+            int(round(np.random.normal(espera_base_minutos + adicional_horario, espera_base_minutos * 0.25))),
+        )
+        data_hora_internacao = data_hora_chegada + timedelta(minutes=tempo_espera_minutos)
+        data_hora_alta = data_hora_internacao + timedelta(days=dias_perm)
+        dt_adm = data_hora_internacao.date()
+        dt_alta = data_hora_alta.date()
             
         # Custos Hospitalares e OPME
         # Em Ortopedia, simula forte variabilidade de custo de OPME (próteses)
@@ -238,8 +255,13 @@ def generate_benchmark_data(num_admissoes: int = 15000, output_dir: str = "data/
             "id_procedimento": proc["id"],
             "cid_10": cid,
             "id_leito": id_leito,
+            "id_leito_pos_uti": id_leito_pos_uti,
             "id_data_admissao": int(dt_adm.strftime("%Y%m%d")),
             "id_data_alta": int(dt_alta.strftime("%Y%m%d")),
+            "data_hora_chegada": data_hora_chegada,
+            "data_hora_internacao": data_hora_internacao,
+            "data_hora_alta": data_hora_alta,
+            "tempo_espera_minutos": tempo_espera_minutos,
             "dias_permanencia": dias_perm,
             "dias_uti": dias_uti,
             "qtd_diarias": dias_perm,
@@ -256,6 +278,36 @@ def generate_benchmark_data(num_admissoes: int = 15000, output_dir: str = "data/
         })
         
     fato_internacoes = pd.DataFrame(fato_rows)
+
+    # Calendário cobre chegada, internação e alta, incluindo viradas de ano.
+    datas_fato = pd.concat([
+        pd.to_datetime(fato_internacoes["data_hora_chegada"]).dt.normalize(),
+        pd.to_datetime(fato_internacoes["data_hora_internacao"]).dt.normalize(),
+        pd.to_datetime(fato_internacoes["data_hora_alta"]).dt.normalize(),
+    ])
+    date_range = pd.date_range(
+        pd.Timestamp(datas_fato.min()).date() - timedelta(days=5),
+        pd.Timestamp(datas_fato.max()).date() + timedelta(days=5),
+        freq="D",
+    )
+    dim_tempo = pd.DataFrame({
+        "id_data": date_range.strftime("%Y%m%d").astype(int),
+        "data_completa": date_range.date,
+        "ano": date_range.year,
+        "mes": date_range.month,
+        "dia": date_range.day,
+        "nome_mes": date_range.strftime("%B"),
+        "trimestre": date_range.quarter,
+        "ano_mes": date_range.strftime("%Y-%m"),
+        "dia_semana": date_range.strftime("%A"),
+        "eh_fim_semana": date_range.dayofweek.isin([5, 6]),
+    })
+    benchmark_metadata = pd.DataFrame([{
+        "num_admissoes": int(num_admissoes),
+        "seed": int(seed),
+        "ano_chegada": 2023,
+        "leitos_operacionais": int(dim_setor_leito["leitos_operacionais"].sum()),
+    }])
     
     # Exportação
     tabelas = {
@@ -264,7 +316,8 @@ def generate_benchmark_data(num_admissoes: int = 15000, output_dir: str = "data/
         "dim_paciente": dim_paciente,
         "dim_procedimento": dim_procedimento,
         "dim_diagnostico": dim_diagnostico,
-        "dim_setor_leito": dim_setor_leito
+        "dim_setor_leito": dim_setor_leito,
+        "benchmark_metadata": benchmark_metadata,
     }
     
     print(f"💾 Salvando tabelas de benchmark em {output_dir}...")
@@ -285,4 +338,9 @@ def generate_benchmark_data(num_admissoes: int = 15000, output_dir: str = "data/
     print(f"🚀 Benchmark concluído com sucesso e gravado em {duckdb_file}!")
 
 if __name__ == "__main__":
-    generate_benchmark_data(num_admissoes=15000)
+    parser = argparse.ArgumentParser(description="Gera o benchmark hospitalar sintético.")
+    parser.add_argument("--admissions", type=int, default=15000, help="Número de internações (padrão: 15000).")
+    parser.add_argument("--output-dir", default="data/benchmark", help="Pasta de saída (padrão: data/benchmark).")
+    parser.add_argument("--seed", type=int, default=42, help="Semente para reprodução (padrão: 42).")
+    args = parser.parse_args()
+    generate_benchmark_data(num_admissoes=args.admissions, output_dir=args.output_dir, seed=args.seed)

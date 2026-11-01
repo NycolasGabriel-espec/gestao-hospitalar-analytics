@@ -10,6 +10,7 @@ import hmac
 from pathlib import Path
 import pandas as pd
 import duckdb
+from sih_data import consolidate_aih_versions
 
 try:
     from dotenv import load_dotenv
@@ -108,7 +109,8 @@ def build_star_schema(input_parquet: str, output_dir: str = "data/processed"):
     cols_necessarias = [
         'N_AIH', 'DT_INTER', 'DT_SAIDA', 'DIAS_PERM', 'QT_DIARIAS',
         'DIAG_PRINC', 'PROC_REA', 'VAL_TOT', 'SEXO', 'IDADE', 'COD_IDADE',
-        'MORTE', 'UTI_MES_TO'
+        'MORTE', 'UTI_MES_TO', 'ANO_CMPT', 'MES_CMPT', 'IDENT',
+        'SEQ_AIH5', 'SEQUENCIA'
     ]
     campos_obrigatorios = {'N_AIH', 'DT_INTER'}
     campos_ausentes = sorted(campos_obrigatorios - set(df_raw.columns))
@@ -141,18 +143,23 @@ def build_star_schema(input_parquet: str, output_dir: str = "data/processed"):
             values.loc[numeric] = values.loc[numeric].str.zfill(width)
         return values.fillna(sentinel).astype(str)
 
-    # Normalizar chaves antes de criar dimensões e fatos para que códigos
+    # Consolida revisões/continuações antes de calcular permanência e valor.
+    # O mesmo resolvedor é usado pela carga dos agregados públicos do benchmark.
+    df, duplicate_count = consolidate_aih_versions(df)
+    if duplicate_count:
+        print(
+            f"ℹ️ {duplicate_count:,} linhas repetidas consolidadas por N_AIH; "
+            "mantida a competência mais recente (prioridade para AIH tipo 5 em empate)."
+        )
+
+    # Normalizar códigos antes de criar dimensões e fatos para que valores
     # ausentes não virem a string "nan" e quebrem as FKs na carga.
     df['PROC_REA'] = normalize_code(df['PROC_REA'], 'SEM_INFO', width=10)
     df['DIAG_PRINC'] = normalize_code(df['DIAG_PRINC'], 'SEM_INFO')
 
-    # O número de AIH identifica a internação, não uma pessoa. Use-o apenas como
-    # chave HMAC para evitar que o valor de origem seja gravado nos artefatos.
+    # O número da AIH identifica o registro de faturamento. Ele não é chave de
+    # pessoa e AIHs de continuidade podem pertencer à mesma internação.
     df['id_atendimento'] = df['N_AIH'].map(lambda value: pseudonymize('atendimento', value))
-    duplicate_count = int(df.duplicated(subset=['id_atendimento']).sum())
-    if duplicate_count:
-        print(f"⚠️ AIHs duplicadas removidas: {duplicate_count:,} (mantida a primeira ocorrência).")
-        df = df.drop_duplicates(subset=['id_atendimento'], keep='first').copy()
     
     # Datas
     def parse_sih_date(series: pd.Series) -> pd.Series:
