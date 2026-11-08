@@ -14,7 +14,7 @@
     "mysql:bootstrap-user": "node --env-file=.env scripts/bootstrap_mysql_user.js"
   },
   "dependencies": {
-    "@vercel/functions": "3.6.1",
+    "@vercel/functions": "3.10.6",
     "mysql2": "^3.24.6"
   }
 }
